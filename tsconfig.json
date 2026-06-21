@@ -1,17 +1,17 @@
 {
   "compilerOptions": {
+    // File Layout
     "rootDir": "./src",
     "outDir": "./dist",
 
-    "target": "ESNext",
+    // Environment Settings
     "module": "ESNext",
+    "target": "ESNext",
     "moduleResolution": "Bundler",
-    "allowImportingTsExtensions": false, // 빌드 시 확장자 관련 에러 방지
     "strict": true,
-    "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true
-  },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "build"]
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true
+  }
 }
