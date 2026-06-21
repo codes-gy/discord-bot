@@ -1,0 +1,36 @@
+{
+  "type": "module",
+  "name": "jelly-bot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.ts",
+  "scripts": {
+    "start": "tsx src/app.ts",
+    "dev": "nodemon --watch 'src/**/*.ts' --exec tsx src/app.ts",
+    "deploy": "tsx src/deploy-commands.ts",
+    "build": "tsc"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dayjs": "^1.11.20",
+    "discord.js": "^14.26.4",
+    "dotenv": "^17.4.2",
+    "morgan": "^1.10.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/morgan": "^1.9.10",
+    "@types/node": "^26.0.0",
+    "cross-env": "^10.1.0",
+    "eslint": "^10.5.0",
+    "eslint-config-prettier": "^10.1.8",
+    "nodemon": "^3.1.14",
+    "prettier": "^3.8.4",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.61.1"
+  }
+}
