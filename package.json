@@ -17,10 +17,12 @@
     "dayjs": "^1.11.20",
     "discord.js": "^14.26.4",
     "dotenv": "^17.4.2",
+    "express": "^5.2.1",
     "morgan": "^1.10.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@types/express": "^5.0.6",
     "@types/morgan": "^1.9.10",
     "@types/node": "^26.0.0",
     "cross-env": "^10.1.0",

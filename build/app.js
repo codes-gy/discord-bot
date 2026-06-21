@@ -5,33 +5,17 @@ import { handleSearch } from './commands/search';
 import { handleView } from './commands/view';
 import { getForumChannel } from './services/forumService';
 import { env } from './utils/env';
-import express from 'express';
-
-const app = express();
-const PORT = Number(process.env.PORT) || 3000;
-
-app.get('/ping', (req, res) => {
-    res.send('pong');
-});
-
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🌐 [Render 필수 로그] 슬립 방지용 웹 서버가 ${PORT} 포트에서 구동 중입니다.`);
-});
-
 const client = new Client({
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
 });
-
 client.once('ready', () => {
     console.log(`젤리봇 로그인 성공: ${client.user?.tag}`);
 });
-
 client.on('interactionCreate', async (interaction) => {
-    if (!interaction.isChatInputCommand()) return;
-
+    if (!interaction.isChatInputCommand())
+        return;
     try {
         const forumChannel = await getForumChannel(client, env.forumChannelId);
-
         switch (interaction.commandName) {
             case '검색':
                 await handleSearch({
@@ -39,7 +23,6 @@ client.on('interactionCreate', async (interaction) => {
                     forumChannel,
                 });
                 break;
-
             case '등록':
                 await handleRegister({
                     interaction,
@@ -47,14 +30,12 @@ client.on('interactionCreate', async (interaction) => {
                     client,
                 });
                 break;
-
             case '조회':
                 await handleView({
                     interaction,
                     forumChannel,
                 });
                 break;
-
             case '삭제':
                 await handleDelete({
                     interaction,
@@ -62,26 +43,23 @@ client.on('interactionCreate', async (interaction) => {
                     client,
                 });
                 break;
-
             default:
                 await interaction.reply({
                     content: '지원하지 않는 명령어입니다.',
                     ephemeral: true,
                 });
         }
-    } catch (error: unknown) {
+    }
+    catch (error) {
         console.error('명령어 처리 중 오류 발생:', error);
-
         if (interaction.deferred || interaction.replied) {
             await interaction.editReply('명령어 처리 중 오류가 발생했습니다.');
             return;
         }
-
         await interaction.reply({
             content: '봇이 대상 포럼 채널에 접근할 수 없습니다. 채널 권한을 확인해 주세요.',
             ephemeral: true,
         });
     }
 });
-
 client.login(env.token);
