@@ -5,7 +5,7 @@
   "description": "",
   "main": "app.ts",
   "scripts": {
-    "start": "tsx src/app.ts",
+    "start": "node --experimental-specifier-resolution=node dist/app.js",
     "dev": "nodemon --watch 'src/**/*.ts' --exec tsx src/app.ts",
     "deploy": "tsx src/deploy-commands.ts",
     "build": "tsc"
