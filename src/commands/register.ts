@@ -3,8 +3,6 @@ import { CommandHandlerWithClient, JobType } from '../types/forumType';
 
 export const handleRegister: CommandHandlerWithClient = async ({ interaction, forumChannel, client }) => {
     try {
-        await interaction.deferReply();
-
         const guildName = interaction.options.getString('문파명', true).toLowerCase();
         const jobTarget = interaction.options.getString('직업명', true) as JobType;
         const nickname = interaction.options.getString('캐릭터명', true).trim();
@@ -55,9 +53,9 @@ export const handleRegister: CommandHandlerWithClient = async ({ interaction, fo
 
         // 인터랙션 상태에 따른 안전한 에러 처리
         if (interaction.deferred || interaction.replied) {
-            await interaction.editReply('등록 수정 중 오류가 발생했습니다.');
+            await interaction.editReply('등록 수정 중 오류가 발생했습니다.').catch(() => {});
         } else {
-            await interaction.reply({ content: '등록 중 오류가 발생했습니다.', ephemeral: true }).catch(() => {});
+            await interaction.reply({ content: '등록 중 오류가 발생했습니다.' }).catch(() => {});
         }
     }
 };

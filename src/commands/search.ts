@@ -4,8 +4,6 @@ import { CommandHandler } from '../types/forumType';
 
 export const handleSearch: CommandHandler = async ({ interaction, forumChannel }) => {
     try {
-        await interaction.deferReply();
-
         const rawKeyword = interaction.options.getString('검색어', true);
         const keyword = rawKeyword.toLowerCase();
 
@@ -64,9 +62,9 @@ export const handleSearch: CommandHandler = async ({ interaction, forumChannel }
         console.error('[Error] handleSearch 중 예외 발생:', error);
 
         if (interaction.deferred || interaction.replied) {
-            await interaction.editReply('검색 처리 중 오류가 발생했습니다.');
+            await interaction.editReply('검색 처리 중 오류가 발생했습니다.').catch(() => {});
         } else {
-            await interaction.reply({ content: '검색 중 오류가 발생했습니다.', ephemeral: true }).catch(() => {});
+            await interaction.reply({ content: '검색 중 오류가 발생했습니다.' }).catch(() => {});
         }
     }
 };
