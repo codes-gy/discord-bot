@@ -6,7 +6,11 @@ import {
     SaveMemberListMessageParams,
     AddNicknameParams,
     RemoveNicknameParams,
+    UpdateNicknameParams,
+    ChangeJobParams,
+    DuplicateMemberResult,
 } from '../types/forumType';
+import { JOB_CHOICES, JobType, ParsedMemberStats } from '../types/forumType';
 
 export async function getForumChannel(client: Client, forumChannelId: string): Promise<ForumChannel> {
     const channel = await client.channels.fetch(forumChannelId);
@@ -15,7 +19,7 @@ export async function getForumChannel(client: Client, forumChannelId: string): P
         throw new Error('설정된 대상 채널이 포럼 채널이 아니거나 찾을 수 없습니다.');
     }
 
-    return channel; // 불필요한 'as ForumChannel' 타입 단언 제거 (이미 위에서 타입 체크 완료)
+    return channel;
 }
 
 /**
@@ -83,7 +87,10 @@ export async function saveMemberListMessage({ client, thread, targetMessage, upd
 }
 
 export function createThreadUrl(guildId: string | null, threadId: string): string {
-    return `https://discord.com/channels/${guildId ?? '@me'}/${threadId}`; // guildId가 없을 때(DM 등)를 위한 방어 코드 추가
+    if (!guildId) {
+        return `https://discord.com/channels/@me/${threadId}`;
+    }
+    return `https://discord.com/channels/${guildId}/${threadId}`;
 }
 
 export function addNicknameToContent({ content, jobTarget, nickname }: AddNicknameParams): ServiceResult {
@@ -146,6 +153,201 @@ export function removeNicknameFromContent({ content, nickname }: RemoveNicknameP
         success: false,
         message: `명단에서 "${nickname}" 님을 삭제하지 못했습니다.`,
     };
+}
+
+export function updateNicknameInContent({ content, oldNickname, newNickname }: UpdateNicknameParams): ServiceResult {
+    if (!hasExactNickname(content, oldNickname)) {
+        return {
+            success: false,
+            message: `"${oldNickname}" 님은 명단에 존재하지 않습니다.`,
+        };
+    }
+
+    if (hasExactNickname(content, newNickname)) {
+        return {
+            success: false,
+            message: `"${newNickname}" 님은 이미 명단에 존재합니다.`,
+        };
+    }
+
+    const lines = content.split('\n');
+
+    for (let i = 0; i < lines.length; i++) {
+        const nicknames = splitNicknames(lines[i]);
+
+        if (nicknames.includes(oldNickname)) {
+            lines[i] = nicknames.map((nickname) => (nickname === oldNickname ? newNickname : nickname)).join(' ');
+
+            return {
+                success: true,
+                message: lines.join('\n'),
+            };
+        }
+    }
+
+    return {
+        success: false,
+        message: `명단에서 "${oldNickname}" 님을 수정하지 못했습니다.`,
+    };
+}
+
+const JOB_VALUES = JOB_CHOICES.map((job) => job.value);
+
+export function parseMemberStats(content: string): ParsedMemberStats {
+    const byJob: Record<JobType, string[]> = {
+        '### 격수': [],
+        '### 도사': [],
+        '### 술사': [],
+    };
+
+    const allMembers: string[] = [];
+    const lines = content.split('\n');
+
+    for (let i = 0; i < lines.length; i++) {
+        const currentLine = lines[i].trim();
+
+        if (JOB_VALUES.includes(currentLine as JobType)) {
+            const job = currentLine as JobType;
+            const nextLine = lines[i + 1] ?? '';
+            const nicknames = splitNicknames(nextLine);
+
+            byJob[job].push(...nicknames);
+            allMembers.push(...nicknames);
+        }
+    }
+
+    const countMap = new Map<string, number>();
+
+    for (const member of allMembers) {
+        countMap.set(member, (countMap.get(member) ?? 0) + 1);
+    }
+
+    const duplicates = [...countMap.entries()].filter(([, count]) => count > 1).map(([name]) => name);
+
+    return {
+        total: allMembers.length,
+        byJob,
+        duplicates,
+    };
+}
+
+export function changeJobInContent({ content, nickname, newJobTarget }: ChangeJobParams): ServiceResult {
+    if (!hasExactNickname(content, nickname)) {
+        return {
+            success: false,
+            message: `"${nickname}" 님은 명단에 존재하지 않습니다.`,
+        };
+    }
+
+    const lines = content.split('\n');
+    let removed = false;
+
+    for (let i = 0; i < lines.length; i++) {
+        const nicknames = splitNicknames(lines[i]);
+
+        if (nicknames.includes(nickname)) {
+            lines[i] = nicknames.filter((name) => name !== nickname).join(' ');
+            removed = true;
+            break;
+        }
+    }
+
+    if (!removed) {
+        return {
+            success: false,
+            message: `"${nickname}" 님을 기존 직업에서 제거하지 못했습니다.`,
+        };
+    }
+
+    for (let i = 0; i < lines.length; i++) {
+        if (lines[i].trim() === newJobTarget) {
+            const nextLine = lines[i + 1] ?? '';
+
+            lines[i + 1] = nextLine.trim() === '' ? nickname : `${nextLine.trim()} ${nickname}`;
+
+            return {
+                success: true,
+                message: lines.join('\n'),
+            };
+        }
+    }
+
+    return {
+        success: false,
+        message: `"${newJobTarget}" 항목을 찾지 못했습니다.`,
+    };
+}
+
+const JOB_LABEL_MAP: Record<JobType, string> = {
+    '### 격수': '격수',
+    '### 도사': '도사',
+    '### 술사': '술사',
+};
+
+export function extractMembersByJob(content: string): Record<JobType, string[]> {
+    const membersByJob: Record<JobType, string[]> = {
+        '### 격수': [],
+        '### 도사': [],
+        '### 술사': [],
+    };
+
+    const lines = content.split('\n');
+
+    for (let i = 0; i < lines.length; i++) {
+        const currentLine = lines[i].trim();
+
+        if (currentLine === '### 격수' || currentLine === '### 도사' || currentLine === '### 술사') {
+            const job = currentLine as JobType;
+            const nextLine = lines[i + 1] ?? '';
+            const nicknames = splitNicknames(nextLine);
+
+            membersByJob[job].push(...nicknames);
+        }
+    }
+
+    return membersByJob;
+}
+
+export function findDuplicateMembersInContents(
+    contents: {
+        threadName: string;
+        threadUrl: string;
+        content: string;
+    }[]
+): DuplicateMemberResult[] {
+    const memberMap = new Map<
+        string,
+        {
+            threadName: string;
+            threadUrl: string;
+            jobName: string;
+        }[]
+    >();
+
+    for (const item of contents) {
+        const membersByJob = extractMembersByJob(item.content);
+
+        for (const [job, nicknames] of Object.entries(membersByJob)) {
+            for (const nickname of nicknames) {
+                const locations = memberMap.get(nickname) ?? [];
+
+                locations.push({
+                    threadName: item.threadName,
+                    threadUrl: item.threadUrl,
+                    jobName: JOB_LABEL_MAP[job as JobType],
+                });
+
+                memberMap.set(nickname, locations);
+            }
+        }
+    }
+
+    return [...memberMap.entries()]
+        .filter(([, locations]) => locations.length > 1)
+        .map(([nickname, locations]) => ({
+            nickname,
+            locations,
+        }));
 }
 
 function splitNicknames(line: string): string[] {

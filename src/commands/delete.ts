@@ -1,12 +1,8 @@
-import { ChatInputCommandInteraction, Client, ForumChannel } from 'discord.js';
 import { createThreadUrl, findMemberListMessage, findThreadByName, removeNicknameFromContent, saveMemberListMessage } from '../services/forumService';
 import { CommandHandlerWithClient } from '../types/forumType';
 
 export const handleDelete: CommandHandlerWithClient = async ({ interaction, forumChannel, client }) => {
     try {
-        // 응답 지연 처리 (3초 제한 연장)
-        await interaction.deferReply();
-
         const guildName = interaction.options.getString('문파명', true).toLowerCase();
         const nickname = interaction.options.getString('캐릭터명', true).trim();
 
@@ -48,9 +44,9 @@ export const handleDelete: CommandHandlerWithClient = async ({ interaction, foru
 
         // 방어 코드: 인터랙션 응답 상태에 따라 분기 처리
         if (interaction.deferred || interaction.replied) {
-            await interaction.editReply('삭제 처리 중 오류가 발생했습니다. 다시 시도해주세요.');
+            await interaction.editReply('삭제 처리 중 오류가 발생했습니다. 다시 시도해주세요.').catch(() => {});
         } else {
-            await interaction.reply({ content: '삭제 처리 중 오류가 발생했습니다.', ephemeral: true }).catch(() => {});
+            await interaction.reply({ content: '삭제 처리 중 오류가 발생했습니다.' }).catch(() => {});
         }
     }
 };

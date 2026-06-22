@@ -51,3 +51,40 @@ export interface RemoveNicknameParams {
     content: string;
     nickname: string;
 }
+
+export type SortType = 'latest' | 'oldest' | 'title';
+
+export const SORT_CHOICES: { name: string; value: SortType }[] = [
+    { name: '최신순', value: 'latest' },
+    { name: '오래된순', value: 'oldest' },
+    { name: '제목순', value: 'title' },
+];
+
+export interface UpdateNicknameParams {
+    content: string;
+    oldNickname: string;
+    newNickname: string;
+}
+
+export interface ParsedMemberStats {
+    total: number;
+    byJob: Record<JobType, string[]>;
+    duplicates: string[];
+}
+
+export interface ChangeJobParams {
+    content: string;
+    nickname: string;
+    newJobTarget: JobType;
+}
+
+export interface DuplicateMemberLocation {
+    threadName: string;
+    threadUrl: string;
+    jobName: string;
+}
+
+export interface DuplicateMemberResult {
+    nickname: string;
+    locations: DuplicateMemberLocation[];
+}

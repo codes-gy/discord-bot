@@ -3,8 +3,6 @@ import { CommandHandler } from '../types/forumType';
 
 export const handleView: CommandHandler = async ({ interaction, forumChannel }) => {
     try {
-        await interaction.deferReply();
-
         const guildName = interaction.options.getString('문파명', true).toLowerCase();
 
         // 1. 문파 스레드 검색
@@ -42,9 +40,9 @@ export const handleView: CommandHandler = async ({ interaction, forumChannel }) 
 
         // 상호작용 상태에 따른 안전한 에러 메시지 처리
         if (interaction.deferred || interaction.replied) {
-            await interaction.editReply('명단을 조회하는 도중 오류가 발생했습니다.');
+            await interaction.editReply('명단을 조회하는 도중 오류가 발생했습니다.').catch(() => {});
         } else {
-            await interaction.reply({ content: '명단을 조회하는 도중 오류가 발생했습니다.', ephemeral: true }).catch(() => {});
+            await interaction.reply({ content: '명단을 조회하는 도중 오류가 발생했습니다.' }).catch(() => {});
         }
     }
 };
