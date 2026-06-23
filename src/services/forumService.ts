@@ -98,11 +98,11 @@ export function addNicknameToContent({ content, jobTarget, nickname }: AddNickna
     for (let i = 0; i < lines.length; i++) {
         if (lines[i].trim() === jobTarget) {
             if (i + 1 >= lines.length) {
-                return { success: false, message: '수정에 실패했습니다.' };
+                lines.push(nickname);
+            } else {
+                const nextLine = lines[i + 1].trim();
+                lines[i + 1] = nextLine === '' ? nickname : `${nextLine} ${nickname}`;
             }
-
-            const nextLine = lines[i + 1].trim();
-            lines[i + 1] = nextLine === '' ? nickname : `${nextLine} ${nickname}`;
 
             return {
                 success: true,
@@ -113,7 +113,7 @@ export function addNicknameToContent({ content, jobTarget, nickname }: AddNickna
 
     return {
         success: false,
-        message: `"${jobTarget}" 대상을 찾을 수 없어 수정에 실패했습니다.`,
+        message: `"${jobTarget}" 대상을 찾을 수 없어 등록에 실패했습니다.`,
     };
 }
 
@@ -252,10 +252,12 @@ export function changeJobInContent({ content, nickname, newJobTarget }: ChangeJo
 
     for (let i = 0; i < lines.length; i++) {
         if (lines[i].trim() === newJobTarget) {
-            const nextLine = lines[i + 1] ?? '';
-
-            lines[i + 1] = nextLine.trim() === '' ? nickname : `${nextLine.trim()} ${nickname}`;
-
+            if (i + 1 >= lines.length) {
+                lines.push(nickname);
+            } else {
+                const nextLine = lines[i + 1] ?? '';
+                lines[i + 1] = nextLine.trim() === '' ? nickname : `${nextLine.trim()} ${nickname}`;
+            }
             return {
                 success: true,
                 message: lines.join('\n'),
