@@ -11,6 +11,7 @@ import { handleStats } from './commands/stats';
 import { handleChangeJob } from './commands/changeJob';
 import { handleCheckDuplicate } from './commands/checkDuplicate';
 import { logger } from './utils/logger';
+import { handleHelp } from './commands/helper';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -40,6 +41,10 @@ client.on('interactionCreate', async (interaction) => {
         const forumChannel = await getForumChannel(client, env.forumChannelId);
 
         switch (interaction.commandName) {
+            case '도움말':
+                await handleHelp({ interaction, forumChannel });
+                break;
+
             case '검색':
                 await handleSearch({ interaction, forumChannel });
                 break;

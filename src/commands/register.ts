@@ -1,12 +1,14 @@
 import { addNicknameToContent, createThreadUrl, findMemberListMessage, findThreadByName, saveMemberListMessage } from '../services/forumService';
 import { CommandHandlerWithClient, JobType } from '../types/forumType';
 import { logger } from '../utils/logger';
+import { getSubjectParticle } from '../utils/korean';
 
 export const handleRegister: CommandHandlerWithClient = async ({ interaction, forumChannel, client }) => {
     const guildName = interaction.options.getString('문파명', true).toLowerCase();
     const jobTarget = interaction.options.getString('직업명', true) as JobType;
     const nickname = interaction.options.getString('캐릭터명', true).trim();
     const cleanJobName = jobTarget.replace(/^[#\s]+/, '').trim();
+    const particle = getSubjectParticle(guildName);
     try {
         logger.info('등록 명령어 실행', {
             user: interaction.user.tag,
@@ -21,7 +23,7 @@ export const handleRegister: CommandHandlerWithClient = async ({ interaction, fo
                 guildName,
                 nickname,
             });
-            await interaction.editReply(`제목에 "${guildName}"이(가) 포함된 문파 포스트를 찾지 못했습니다.`);
+            await interaction.editReply(`제목에 "${guildName}"${particle} 포함된 문파 포스트를 찾지 못했습니다.`);
             return;
         }
 

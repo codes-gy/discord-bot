@@ -1,9 +1,11 @@
 import { createThreadUrl, findMemberListMessage, findThreadByName } from '../services/forumService';
 import { CommandHandler } from '../types/forumType';
 import { logger } from '../utils/logger';
+import { getSubjectParticle } from '../utils/korean';
 
 export const handleView: CommandHandler = async ({ interaction, forumChannel }) => {
     const guildName = interaction.options.getString('문파명', true).toLowerCase();
+    const particle = getSubjectParticle(guildName);
     try {
         logger.info('조회 명령어 실행', {
             user: interaction.user.tag,
@@ -15,7 +17,7 @@ export const handleView: CommandHandler = async ({ interaction, forumChannel }) 
             logger.warn('조회 실패(제목 없음)', {
                 guildName,
             });
-            await interaction.editReply(`제목에 "${guildName}"이(가) 포함된 문파명을 찾지 못했습니다.`);
+            await interaction.editReply(`제목에 "${guildName}"${particle} 포함된 문파명을 찾지 못했습니다.`);
             return;
         }
 

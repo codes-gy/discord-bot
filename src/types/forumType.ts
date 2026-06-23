@@ -9,6 +9,12 @@ export interface ServiceResult {
 
 export type JobType = '### 격수' | '### 도사' | '### 술사';
 
+export const JOB_LABEL: Record<JobType, string> = {
+    '### 격수': '격수',
+    '### 도사': '도사',
+    '### 술사': '술사',
+};
+
 export const MEMBER_LIST_MARKER = '## 문파원 정보 안내';
 
 export const JOB_CHOICES: { name: string; value: JobType }[] = [
@@ -87,4 +93,9 @@ export interface DuplicateMemberLocation {
 export interface DuplicateMemberResult {
     nickname: string;
     locations: DuplicateMemberLocation[];
+}
+
+export interface SearchResult {
+    thread: ThreadChannel;
+    matchedWord: string;
 }

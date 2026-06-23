@@ -1,10 +1,12 @@
 import { createThreadUrl, findMemberListMessage, findThreadByName, removeNicknameFromContent, saveMemberListMessage } from '../services/forumService';
 import { CommandHandlerWithClient } from '../types/forumType';
 import { logger } from '../utils/logger';
+import { getSubjectParticle, getTopicParticle } from '../utils/korean';
 
 export const handleDelete: CommandHandlerWithClient = async ({ interaction, forumChannel, client }) => {
     const guildName = interaction.options.getString('문파명', true).toLowerCase();
     const nickname = interaction.options.getString('캐릭터명', true).trim();
+    const particle = getSubjectParticle(guildName);
     try {
         logger.info('삭제 명령어 실행', {
             user: interaction.user.tag,
@@ -18,7 +20,7 @@ export const handleDelete: CommandHandlerWithClient = async ({ interaction, foru
                 guildName,
                 nickname,
             });
-            await interaction.editReply(`제목에 "${guildName}"이(가) 포함된 문파 포스트를 찾지 못했습니다.`);
+            await interaction.editReply(`제목에 "${guildName}"${particle} 포함된 문파 포스트를 찾지 못했습니다.`);
             return;
         }
 
@@ -48,7 +50,7 @@ export const handleDelete: CommandHandlerWithClient = async ({ interaction, foru
             client,
             thread: targetThread,
             targetMessage,
-            updatedContent: result.message, // 서비스 결과의 message에 수정된 전체 텍스트가 담겨있음
+            updatedContent: result.message,
         });
 
         logger.info('삭제 완료', {
@@ -57,7 +59,7 @@ export const handleDelete: CommandHandlerWithClient = async ({ interaction, foru
         });
 
         await interaction.editReply(
-            `[${targetThread.name}](${createThreadUrl(interaction.guildId, targetThread.id)}) 명단에서 "${nickname}" 님을 성공적으로 삭제했습니다.`
+            `[${targetThread.name}](${createThreadUrl(interaction.guildId, targetThread.id)}) 에서 "${nickname}" 님을 성공적으로 삭제했습니다.`
         );
     } catch (error) {
         logger.error('삭제 중 오류 발생', error, {

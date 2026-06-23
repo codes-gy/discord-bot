@@ -1,12 +1,29 @@
 import { Collection, Message, ThreadChannel } from 'discord.js';
 import { createThreadUrl, getAllThreads } from '../services/forumService';
-import { CommandHandler } from '../types/forumType';
+import type { CommandHandler } from '../types/forumType';
 import { logger } from '../utils/logger';
 import { env } from '../utils/env';
+import { getTopicParticle } from '../utils/korean';
+
+interface SearchResult {
+    thread: ThreadChannel;
+    matchedWord: string;
+}
 
 export const handleSearch: CommandHandler = async ({ interaction, forumChannel }) => {
-    const rawKeyword = interaction.options.getString('검색어', true);
-    const keyword = rawKeyword.toLowerCase();
+    const rawKeyword = interaction.options.getString('검색어', true).trim();
+
+    if (rawKeyword.length < 2 || rawKeyword.length > 6) {
+        logger.warn('검색 글자 수 제한 위반', {
+            user: interaction.user.tag,
+            keyword: rawKeyword,
+            length: rawKeyword.length,
+        });
+
+        await interaction.editReply('검색어는 최소 **2글자**부터 최대 **6글자**까지 입력할 수 있습니다.');
+        return;
+    }
+
     try {
         logger.info('검색 명령어 실행', {
             user: interaction.user.tag,
@@ -15,53 +32,67 @@ export const handleSearch: CommandHandler = async ({ interaction, forumChannel }
 
         const allThreads = await getAllThreads(forumChannel);
 
-        const matchedThreads: ThreadChannel[] = allThreads.filter((thread) => thread.name.toLowerCase().includes(keyword));
-
-        const remainingThreads = allThreads.filter((thread) => !matchedThreads.includes(thread));
-
-        const searchPromises = remainingThreads.map(async (thread) => {
+        const searchPromises = allThreads.map(async (thread): Promise<SearchResult | null> => {
             try {
                 const starterMessage = await thread.fetchStarterMessage().catch(() => null);
-                if (starterMessage?.content.toLowerCase().includes(keyword)) {
-                    return thread;
+
+                if (starterMessage) {
+                    const matchedWord = findMatchedWord(starterMessage.content, rawKeyword);
+
+                    if (matchedWord) {
+                        return {
+                            thread,
+                            matchedWord,
+                        };
+                    }
                 }
 
                 const messages = await thread.messages.fetch({ limit: 50 }).catch(() => new Collection<string, Message>());
-                if (messages.some((msg) => msg.content.toLowerCase().includes(keyword))) {
-                    return thread;
+
+                for (const message of messages.values()) {
+                    const matchedWord = findMatchedWord(message.content, rawKeyword);
+
+                    if (matchedWord) {
+                        return {
+                            thread,
+                            matchedWord,
+                        };
+                    }
                 }
             } catch (error) {
-                logger.error('스레드 검색 중 오류 발생', {
+                logger.error('스레드 검색 중 오류 발생', error, {
                     threadId: thread.id,
                     threadName: thread.name,
-                    error,
                 });
             }
+
             return null;
         });
 
         const parallelResults = await Promise.all(searchPromises);
 
-        for (const thread of parallelResults) {
-            if (thread) matchedThreads.push(thread);
-        }
+        const matchedResults: SearchResult[] = parallelResults.filter((result): result is SearchResult => result !== null);
 
-        if (matchedThreads.length === 0) {
+        if (matchedResults.length === 0) {
             logger.info('검색 완료(결과 없음)', {
                 user: interaction.user.tag,
                 keyword: rawKeyword,
                 searchedThreadCount: allThreads.length,
             });
-            await interaction.editReply(`"${rawKeyword}" 문구가 포함된 포스트를 찾지 못했습니다.\n\`/등록\` 명령어를 통해 새로 추가해주세요.`);
+
+            await interaction.editReply(`"${rawKeyword}" 캐릭터와 정확히 일치하는 포스트를 찾지 못했습니다.`);
             return;
         }
 
-        let replyMessage = `**검색 결과 (총 ${matchedThreads.length}개):**\n`;
+        let replyMessage = `**검색 결과 (총 ${matchedResults.length}개):**\n`;
         let visibleCount = 0;
 
-        for (const thread of matchedThreads) {
-            const threadLink = createThreadUrl(interaction.guildId, thread.id);
-            const line = `• **${rawKeyword}**는 [${thread.name}](${threadLink})입니다.\n`;
+        for (const result of matchedResults) {
+            const threadLink = createThreadUrl(interaction.guildId, result.thread.id);
+
+            const particle = getTopicParticle(result.matchedWord);
+
+            const line = `• **${result.matchedWord}**${particle} [${result.thread.name}](${threadLink}) 입니다.\n`;
 
             if ((replyMessage + line).length > env.MAX_DISCORD_MESSAGE_LENGTH) {
                 break;
@@ -71,7 +102,7 @@ export const handleSearch: CommandHandler = async ({ interaction, forumChannel }
             visibleCount++;
         }
 
-        const hiddenCount = matchedThreads.length - visibleCount;
+        const hiddenCount = matchedResults.length - visibleCount;
 
         if (hiddenCount > 0) {
             replyMessage += `\n외 ${hiddenCount}개의 검색 결과가 더 있습니다.`;
@@ -81,7 +112,9 @@ export const handleSearch: CommandHandler = async ({ interaction, forumChannel }
             user: interaction.user.tag,
             keyword: rawKeyword,
             searchedThreadCount: allThreads.length,
-            resultCount: matchedThreads.length,
+            resultCount: matchedResults.length,
+            visibleCount,
+            hiddenCount,
         });
 
         await interaction.editReply(replyMessage);
@@ -93,8 +126,21 @@ export const handleSearch: CommandHandler = async ({ interaction, forumChannel }
 
         if (interaction.deferred || interaction.replied) {
             await interaction.editReply('검색 처리 중 오류가 발생했습니다.').catch(() => {});
-        } else {
-            await interaction.reply({ content: '검색 중 오류가 발생했습니다.' }).catch(() => {});
+            return;
         }
+
+        await interaction.reply({ content: '검색 중 오류가 발생했습니다.' }).catch(() => {});
     }
 };
+
+function findMatchedWord(content: string, keyword: string): string | null {
+    const keywordLower = keyword.toLowerCase();
+
+    return (
+        content
+            .split(/\s+/)
+            .map((word) => word.trim())
+            .filter(Boolean)
+            .find((word) => word.toLowerCase().includes(keywordLower)) ?? null
+    );
+}
