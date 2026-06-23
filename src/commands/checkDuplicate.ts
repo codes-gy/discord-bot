@@ -1,10 +1,14 @@
 import { createThreadUrl, findDuplicateMembersInContents, findMemberListMessage, getAllThreads } from '../services/forumService';
 import type { CommandHandler } from '../types/forumType';
-
-const MAX_DISCORD_MESSAGE_LENGTH = 1900;
+import { logger } from '../utils/logger';
+import { env } from '../utils/env';
 
 export const handleCheckDuplicate: CommandHandler = async ({ interaction, forumChannel }) => {
     try {
+        logger.info('중복검사 명령어 실행', {
+            user: interaction.user.tag,
+        });
+
         const threads = await getAllThreads(forumChannel);
 
         const contents = [];
@@ -24,7 +28,12 @@ export const handleCheckDuplicate: CommandHandler = async ({ interaction, forumC
         const duplicates = findDuplicateMembersInContents(contents);
 
         if (duplicates.length === 0) {
-            await interaction.editReply('전체 포럼 포스트에서 중복 등록된 캐릭터를 찾지 못했습니다.');
+            logger.info('중복검사 완료(중복 없음)', {
+                user: interaction.user.tag,
+                threadCount: threads.length,
+                checkedPostCount: contents.length,
+            });
+            await interaction.editReply('전체 포스트에서 중복 등록된 캐릭터명을 찾지 못했습니다.');
             return;
         }
 
@@ -39,7 +48,7 @@ export const handleCheckDuplicate: CommandHandler = async ({ interaction, forumC
 
             const block = `${visibleCount + 1}. ${duplicate.nickname} - ${locations}\n`;
 
-            if ((replyMessage + block).length > MAX_DISCORD_MESSAGE_LENGTH) {
+            if ((replyMessage + block).length > env.MAX_DISCORD_MESSAGE_LENGTH) {
                 break;
             }
 
@@ -50,12 +59,23 @@ export const handleCheckDuplicate: CommandHandler = async ({ interaction, forumC
         const hiddenCount = duplicates.length - visibleCount;
 
         if (hiddenCount > 0) {
-            replyMessage += `\n외 ${hiddenCount}개의 중복 항목이 더 있습니다.`;
+            replyMessage += `\n외 ${hiddenCount}개의 중복된 항목이 있습니다.`;
         }
+
+        logger.info('중복검사 완료', {
+            user: interaction.user.tag,
+            threadCount: threads.length,
+            checkedPostCount: contents.length,
+            duplicateCount: duplicates.length,
+            visibleCount: visibleCount,
+            hiddenCount: hiddenCount,
+        });
 
         await interaction.editReply(replyMessage);
     } catch (error) {
-        console.error('[Error] handleCheckDuplicate 중 예외 발생:', error);
+        logger.error('중복검사 중 오류 발생', error, {
+            user: interaction.user.tag,
+        });
         await interaction.editReply('중복 검사 중 오류가 발생했습니다.').catch(() => {});
     }
 };
