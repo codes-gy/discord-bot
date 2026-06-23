@@ -1,15 +1,11 @@
 import { createThreadUrl, findMemberListMessage, findThreadByName, parseMemberStats } from '../services/forumService';
-import type { CommandHandler, JobType } from '../types/forumType';
+import { CommandHandler, JOB_LABEL, JobType } from '../types/forumType';
 import { logger } from '../utils/logger';
-
-const JOB_LABEL: Record<JobType, string> = {
-    '### 격수': '격수',
-    '### 도사': '도사',
-    '### 술사': '술사',
-};
+import { getSubjectParticle } from '../utils/korean';
 
 export const handleStats: CommandHandler = async ({ interaction, forumChannel }) => {
     const guildName = interaction.options.getString('문파명', true).toLowerCase();
+    const particle = getSubjectParticle(guildName);
     try {
         logger.info('통계 명령어 실행', {
             user: interaction.user.tag,
@@ -22,7 +18,7 @@ export const handleStats: CommandHandler = async ({ interaction, forumChannel })
             logger.info('통계 실패(제목 없음)', {
                 guildName,
             });
-            await interaction.editReply(`제목에 "${guildName}"이(가) 포함된 포스트를 찾지 못했습니다.`);
+            await interaction.editReply(`제목에 "${guildName}"${particle} 포함된 포스트를 찾지 못했습니다.`);
             return;
         }
 

@@ -2,6 +2,8 @@ import { SlashCommandBuilder } from 'discord.js';
 import { JOB_CHOICES, SORT_CHOICES } from '../types/forumType';
 
 export const commands = [
+    new SlashCommandBuilder().setName('도움말').setDescription('젤리봇 사용법을 안내드려요!'),
+
     new SlashCommandBuilder()
         .setName('검색')
         .setDescription('포스트에서 특정 내용을 검색합니다.')

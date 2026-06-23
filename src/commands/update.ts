@@ -1,11 +1,13 @@
 import { createThreadUrl, findMemberListMessage, findThreadByName, saveMemberListMessage, updateNicknameInContent } from '../services/forumService';
 import type { CommandHandlerWithClient } from '../types/forumType';
 import { logger } from '../utils/logger';
+import { getSubjectParticle } from '../utils/korean';
 
 export const handleUpdate: CommandHandlerWithClient = async ({ interaction, forumChannel, client }) => {
     const guildName = interaction.options.getString('문파명', true).toLowerCase();
     const oldNickname = interaction.options.getString('기존캐릭터명', true).trim();
     const newNickname = interaction.options.getString('새캐릭터명', true).trim();
+    const particle = getSubjectParticle(guildName);
     try {
         logger.info('수정 명령어 실행', {
             user: interaction.user.tag,
@@ -22,7 +24,7 @@ export const handleUpdate: CommandHandlerWithClient = async ({ interaction, foru
                 oldNickname,
                 newNickname,
             });
-            await interaction.editReply(`제목에 "${guildName}"이(가) 포함된 문파명을 찾지 못했습니다.`);
+            await interaction.editReply(`제목에 "${guildName}"${particle} 포함된 문파명을 찾지 못했습니다.`); //이(가)
             return;
         }
 

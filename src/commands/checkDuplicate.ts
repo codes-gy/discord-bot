@@ -18,10 +18,12 @@ export const handleCheckDuplicate: CommandHandler = async ({ interaction, forumC
 
             if (!message) continue;
 
+            const cleanedContent = message.content.replace(/_/g, '');
+
             contents.push({
                 threadName: thread.name,
                 threadUrl: createThreadUrl(interaction.guildId, thread.id),
-                content: message.content,
+                content: cleanedContent,
             });
         }
 
