@@ -1,4 +1,4 @@
-import { addNicknameToContent, createThreadUrl, findMemberListMessage, findThreadByName, saveMemberListMessage } from '../services/forumService';
+import { addNicknameToContent, createThreadUrl, findMemberListMessage, findThreadByExactName, saveMemberListMessage } from '../services/forumService';
 import { CommandHandlerWithClient, JobType } from '../types/forumType';
 import { logger } from '../utils/logger';
 import { getSubjectParticle } from '../utils/korean';
@@ -17,7 +17,7 @@ export const handleRegister: CommandHandlerWithClient = async ({ interaction, fo
             nickname,
         });
 
-        const targetThread = await findThreadByName(forumChannel, guildName);
+        const targetThread = await findThreadByExactName(forumChannel, guildName);
         if (!targetThread) {
             logger.warn('등록 실패(제목 없음)', {
                 guildName,
@@ -78,7 +78,7 @@ export const handleRegister: CommandHandlerWithClient = async ({ interaction, fo
         });
 
         if (interaction.deferred || interaction.replied) {
-            await interaction.editReply('등록 수정 중 오류가 발생했습니다.').catch(() => {});
+            await interaction.editReply('등록 중 오류가 발생했습니다.').catch(() => {});
         } else {
             await interaction.reply({ content: '등록 중 오류가 발생했습니다.' }).catch(() => {});
         }

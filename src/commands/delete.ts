@@ -1,7 +1,13 @@
-import { createThreadUrl, findMemberListMessage, findThreadByName, removeNicknameFromContent, saveMemberListMessage } from '../services/forumService';
+import {
+    createThreadUrl,
+    findMemberListMessage,
+    findThreadByExactName,
+    removeNicknameFromContent,
+    saveMemberListMessage,
+} from '../services/forumService';
 import { CommandHandlerWithClient } from '../types/forumType';
 import { logger } from '../utils/logger';
-import { getSubjectParticle, getTopicParticle } from '../utils/korean';
+import { getSubjectParticle } from '../utils/korean';
 
 export const handleDelete: CommandHandlerWithClient = async ({ interaction, forumChannel, client }) => {
     const guildName = interaction.options.getString('문파명', true).toLowerCase();
@@ -14,7 +20,7 @@ export const handleDelete: CommandHandlerWithClient = async ({ interaction, foru
             nickname,
         });
 
-        const targetThread = await findThreadByName(forumChannel, guildName);
+        const targetThread = await findThreadByExactName(forumChannel, guildName);
         if (!targetThread) {
             logger.warn('삭제 실패(제목 없음)', {
                 guildName,

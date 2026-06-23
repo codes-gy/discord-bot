@@ -1,4 +1,4 @@
-import { changeJobInContent, createThreadUrl, findMemberListMessage, findThreadByName, saveMemberListMessage } from '../services/forumService';
+import { changeJobInContent, createThreadUrl, findMemberListMessage, findThreadByExactName, saveMemberListMessage } from '../services/forumService';
 import type { CommandHandlerWithClient, JobType } from '../types/forumType';
 import { logger } from '../utils/logger';
 import { getSubjectParticle } from '../utils/korean';
@@ -17,7 +17,7 @@ export const handleChangeJob: CommandHandlerWithClient = async ({ interaction, f
             jobName: cleanJobName,
         });
 
-        const targetThread = await findThreadByName(forumChannel, guildName);
+        const targetThread = await findThreadByExactName(forumChannel, guildName);
 
         if (!targetThread) {
             logger.warn('직업변경 실패(제목 없음)', {

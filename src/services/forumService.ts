@@ -341,6 +341,13 @@ export function findDuplicateMembersInContents(
         }));
 }
 
+export async function findThreadByExactName(forumChannel: ForumChannel, keyword: string): Promise<ThreadChannel | undefined> {
+    const threads = await getAllThreads(forumChannel);
+    const normalizedKeyword = keyword.toLowerCase().trim();
+
+    return threads.find((thread) => thread.name.toLowerCase().trim() === normalizedKeyword);
+}
+
 function splitNicknames(line: string): string[] {
     return line.trim().split(/\s+/).filter(Boolean);
 }
