@@ -1,4 +1,4 @@
-import { createThreadUrl, findMemberListMessage, findThreadByName } from '../services/forumService';
+import { createThreadUrl, findMemberListMessage, getAllThreads } from '../services/forumService';
 import { CommandHandler } from '../types/forumType';
 import { logger } from '../utils/logger';
 import { getSubjectParticle } from '../utils/korean';
@@ -12,7 +12,9 @@ export const handleView: CommandHandler = async ({ interaction, forumChannel }) 
             guildName,
         });
 
-        const targetThread = await findThreadByName(forumChannel, guildName);
+        const threads = await getAllThreads(forumChannel);
+
+        const targetThread = threads.find((thread) => thread.name.toLowerCase().trim() === guildName);
         if (!targetThread) {
             logger.warn('조회 실패(제목 없음)', {
                 guildName,
