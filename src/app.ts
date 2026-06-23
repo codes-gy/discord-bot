@@ -10,6 +10,7 @@ import { handleUpdate } from './commands/update';
 import { handleStats } from './commands/stats';
 import { handleChangeJob } from './commands/changeJob';
 import { handleCheckDuplicate } from './commands/checkDuplicate';
+import { logger } from './utils/logger';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -19,7 +20,7 @@ app.get('/ping', (_req, res) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`웹 서버가 ${PORT} 포트에서 구동 중입니다.`);
+    logger.info(`웹 서버가 ${PORT} 포트에서 구동 중입니다.`);
 });
 
 const client = new Client({
@@ -27,14 +28,14 @@ const client = new Client({
 });
 
 client.once('clientReady', () => {
-    console.log(`젤리봇 로그인 성공: ${client.user?.tag}`);
+    logger.info(`젤리봇 로그인 성공: ${client.user?.tag}`);
 });
 
 client.on('interactionCreate', async (interaction) => {
     if (!interaction.isChatInputCommand()) return;
 
     try {
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: 64 });
 
         const forumChannel = await getForumChannel(client, env.forumChannelId);
 
@@ -73,7 +74,7 @@ client.on('interactionCreate', async (interaction) => {
                 await interaction.editReply('지원하지 않는 명령어입니다.');
         }
     } catch (error: unknown) {
-        console.error('명령어 처리 중 오류 발생:', error);
+        logger.error('명령어 처리 중 오류 발생:', error);
 
         if (interaction.deferred || interaction.replied) {
             await interaction.editReply('명령어 처리 중 오류가 발생했습니다.').catch(() => {});
