@@ -17,6 +17,7 @@ const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 
 app.get('/ping', (_req, res) => {
+    logger.info('ping 수신');
     res.status(200).send('pong');
 });
 
