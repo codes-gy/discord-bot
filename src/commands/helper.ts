@@ -13,7 +13,6 @@ export const handleHelp: CommandHandler = async ({ interaction }) => {
             '`/생성 문파명`',
             '채널에 새로운 문파 포스트를 작성합니다.',
             '',
-            '',
             '`/검색 캐릭터명`',
             '게시글 본문, 최근 메시지에서 캐릭터명을 찾습니다.',
             '',
