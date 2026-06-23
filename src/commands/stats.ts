@@ -1,4 +1,4 @@
-import { createThreadUrl, findMemberListMessage, findThreadByName, parseMemberStats } from '../services/forumService';
+import { createThreadUrl, findMemberListMessage, findThreadByExactName, parseMemberStats } from '../services/forumService';
 import { CommandHandler, JOB_LABEL, JobType } from '../types/forumType';
 import { logger } from '../utils/logger';
 import { getSubjectParticle } from '../utils/korean';
@@ -12,7 +12,7 @@ export const handleStats: CommandHandler = async ({ interaction, forumChannel })
             guildName,
         });
 
-        const targetThread = await findThreadByName(forumChannel, guildName);
+        const targetThread = await findThreadByExactName(forumChannel, guildName);
 
         if (!targetThread) {
             logger.info('통계 실패(제목 없음)', {

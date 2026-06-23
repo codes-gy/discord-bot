@@ -1,8 +1,13 @@
 import { SlashCommandBuilder } from 'discord.js';
-import { JOB_CHOICES, SORT_CHOICES } from '../types/forumType';
+import { JOB_CHOICES } from '../types/forumType';
 
 export const commands = [
     new SlashCommandBuilder().setName('도움말').setDescription('젤리봇 사용법을 안내드려요!'),
+
+    new SlashCommandBuilder()
+        .setName('생성')
+        .setDescription('새 포스트를 작성합니다!')
+        .addStringOption((option) => option.setName('문파명').setDescription('생성할 문파명').setRequired(true)),
 
     new SlashCommandBuilder()
         .setName('검색')

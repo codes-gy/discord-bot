@@ -12,6 +12,7 @@ import { handleChangeJob } from './commands/changeJob';
 import { handleCheckDuplicate } from './commands/checkDuplicate';
 import { logger } from './utils/logger';
 import { handleHelp } from './commands/helper';
+import { handleCreatePost } from './commands/createPost';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -44,6 +45,10 @@ client.on('interactionCreate', async (interaction) => {
         switch (interaction.commandName) {
             case '도움말':
                 await handleHelp({ interaction, forumChannel });
+                break;
+
+            case '생성':
+                await handleCreatePost({ interaction, forumChannel });
                 break;
 
             case '검색':

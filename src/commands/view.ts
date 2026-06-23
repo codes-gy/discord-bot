@@ -1,25 +1,22 @@
-import { createThreadUrl, findMemberListMessage, getAllThreads } from '../services/forumService';
+import { createThreadUrl, findMemberListMessage, findThreadByExactName } from '../services/forumService';
 import { CommandHandler } from '../types/forumType';
 import { logger } from '../utils/logger';
-import { getSubjectParticle } from '../utils/korean';
 
 export const handleView: CommandHandler = async ({ interaction, forumChannel }) => {
     const guildName = interaction.options.getString('문파명', true).toLowerCase();
-    const particle = getSubjectParticle(guildName);
+
     try {
         logger.info('조회 명령어 실행', {
             user: interaction.user.tag,
             guildName,
         });
 
-        const threads = await getAllThreads(forumChannel);
-
-        const targetThread = threads.find((thread) => thread.name.toLowerCase().trim() === guildName);
+        const targetThread = await findThreadByExactName(forumChannel, guildName);
         if (!targetThread) {
             logger.warn('조회 실패(제목 없음)', {
                 guildName,
             });
-            await interaction.editReply(`제목에 "${guildName}"${particle} 포함된 문파명을 찾지 못했습니다.`);
+            await interaction.editReply(`"${guildName}"와 일치하는 문파 포스트를 찾지 못했습니다.`);
             return;
         }
 
@@ -32,7 +29,7 @@ export const handleView: CommandHandler = async ({ interaction, forumChannel }) 
                 `[${targetThread.name}](${createThreadUrl(
                     interaction.guildId,
                     targetThread.id
-                )}) 포스트 내부에서 \`## 문파원 정보 안내\` 양식을 찾지 못했습니다.`
+                )}) 포스트 내부에서 \`문파원 정보 안내\` 양식을 찾지 못했습니다.`
             );
             return;
         }
@@ -64,9 +61,9 @@ export const handleView: CommandHandler = async ({ interaction, forumChannel }) 
         });
 
         if (interaction.deferred || interaction.replied) {
-            await interaction.editReply('명단을 조회하는 도중 오류가 발생했습니다.').catch(() => {});
+            await interaction.editReply('목록을 조회하는 도중 오류가 발생했습니다.').catch(() => {});
         } else {
-            await interaction.reply({ content: '명단을 조회하는 도중 오류가 발생했습니다.' }).catch(() => {});
+            await interaction.reply({ content: '목록을 조회하는 도중 오류가 발생했습니다.' }).catch(() => {});
         }
     }
 };

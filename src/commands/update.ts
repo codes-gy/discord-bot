@@ -1,4 +1,10 @@
-import { createThreadUrl, findMemberListMessage, findThreadByName, saveMemberListMessage, updateNicknameInContent } from '../services/forumService';
+import {
+    createThreadUrl,
+    findMemberListMessage,
+    findThreadByExactName,
+    saveMemberListMessage,
+    updateNicknameInContent,
+} from '../services/forumService';
 import type { CommandHandlerWithClient } from '../types/forumType';
 import { logger } from '../utils/logger';
 import { getSubjectParticle } from '../utils/korean';
@@ -16,7 +22,7 @@ export const handleUpdate: CommandHandlerWithClient = async ({ interaction, foru
             newNickname,
         });
 
-        const targetThread = await findThreadByName(forumChannel, guildName);
+        const targetThread = await findThreadByExactName(forumChannel, guildName);
 
         if (!targetThread) {
             logger.warn('수정 실패(제목 없음)', {
