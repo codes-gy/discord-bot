@@ -13,6 +13,7 @@ import { handleCheckDuplicate } from './commands/checkDuplicate';
 import { logger } from './utils/logger';
 import { handleHelp } from './commands/helper';
 import { handleCreatePost } from './commands/createPost';
+import { connectRedis } from './utils/redis';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -100,4 +101,8 @@ client.on('interactionCreate', async (interaction) => {
     }
 });
 
-client.login(env.token);
+async function start() {
+    await connectRedis();
+    await client.login(env.token);
+}
+start().then(() => {});
