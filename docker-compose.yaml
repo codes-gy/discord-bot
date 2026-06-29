@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  # 1. 레디스 캐시 서버
+  discord-bot-redis:
+    image: redis:alpine
+    container_name: discord-bot-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: always
+
+  # 2. 레디스 내부 데이터를 눈으로 볼 수 있는 웹 GUI 툴 (선택사항, 대단히 편리함)
+  redis-insight:
+    image: redis/redisinsight:latest
+    container_name: redis-insight
+    ports:
+      - "5540:5540"
+    restart: always
+
+volumes:
+  redis_data:

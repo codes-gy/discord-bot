@@ -1,5 +1,5 @@
 import { Collection, Message, ThreadChannel } from 'discord.js';
-import { createThreadUrl, getAllThreads } from '../services/forumService';
+import { createThreadUrl, findMemberListMessage, getAllThreads } from '../services/forumService';
 import type { CommandHandler } from '../types/forumType';
 import { logger } from '../utils/logger';
 import { env } from '../utils/env';
@@ -34,7 +34,7 @@ export const handleSearch: CommandHandler = async ({ interaction, forumChannel }
 
         const searchPromises = allThreads.map(async (thread): Promise<SearchResult | null> => {
             try {
-                const starterMessage = await thread.fetchStarterMessage().catch(() => null);
+                const starterMessage = await findMemberListMessage({ thread }).catch(() => null);
 
                 if (starterMessage) {
                     const matchedWord = findMatchedWord(starterMessage.content, rawKeyword);
