@@ -47,7 +47,7 @@ export const handleSearch: CommandHandler = async ({ interaction, forumChannel }
                     }
                 }
 
-                const messages = await thread.messages.fetch({ limit: 50 }).catch(() => new Collection<string, Message>());
+                const messages = await thread.messages.fetch({ limit: 5 }).catch(() => new Collection<string, Message>());
 
                 for (const message of messages.values()) {
                     const matchedWord = findMatchedWord(message.content, rawKeyword);
@@ -71,7 +71,7 @@ export const handleSearch: CommandHandler = async ({ interaction, forumChannel }
 
         const parallelResults = await Promise.all(searchPromises);
 
-        const matchedResults: SearchResult[] = parallelResults.filter((result): result is SearchResult => result !== null);
+        const matchedResults: SearchResult[] = parallelResults.filter((result): result is NonNullable<typeof result> => result !== null);
 
         if (matchedResults.length === 0) {
             logger.info('검색 완료(결과 없음)', {

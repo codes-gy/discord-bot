@@ -11,22 +11,19 @@ export const handleCheckDuplicate: CommandHandler = async ({ interaction, forumC
 
         const threads = await getAllThreads(forumChannel);
 
-        const contents = [];
+        const rawContents = await Promise.all(
+            threads.map(async (thread) => {
+                const message = await findMemberListMessage({ thread }).catch(() => undefined);
 
-        for (const thread of threads) {
-            const message = await findMemberListMessage({ thread }).catch(() => undefined);
-
-            if (!message) continue;
-
-            const cleanedContent = message.content.replace(/_/g, '');
-
-            contents.push({
-                threadName: thread.name,
-                threadUrl: createThreadUrl(interaction.guildId, thread.id),
-                content: cleanedContent,
-            });
-        }
-
+                if (!message) return null;
+                return {
+                    threadName: thread.name,
+                    threadUrl: createThreadUrl(interaction.guildId, thread.id),
+                    content: message.content.replace(/_/g, ''),
+                };
+            })
+        );
+        const contents = rawContents.filter((item): item is NonNullable<typeof item> => item !== null);
         const duplicates = findDuplicateMembersInContents(contents);
 
         if (duplicates.length === 0) {
