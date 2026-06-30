@@ -146,7 +146,7 @@ export async function saveMemberListMessage({ client, thread, targetMessage, upd
     let finalMessageId = targetMessage.id;
 
     if (targetMessage.author.id === client.user?.id) {
-        await targetMessage.edit({ content: updatedContent });
+        await thread.messages.edit(targetMessage.id, { content: updatedContent });
     } else {
         const sentMessage = await thread.send({ content: updatedContent });
         finalMessageId = sentMessage.id;
