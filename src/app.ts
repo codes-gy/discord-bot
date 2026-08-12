@@ -1,108 +1,43 @@
-import { Client, GatewayIntentBits } from 'discord.js';
-import { handleDelete } from './commands/delete';
-import { handleRegister } from './commands/register';
-import { handleSearch } from './commands/search';
-import { handleView } from './commands/view';
-import { getForumChannel } from './services/forumService';
-import { env } from './utils/env';
-import express from 'express';
-import { handleUpdate } from './commands/update';
-import { handleStats } from './commands/stats';
-import { handleChangeJob } from './commands/changeJob';
-import { handleCheckDuplicate } from './commands/checkDuplicate';
+import { Client, GatewayIntentBits, Events, Partials } from 'discord.js';
+import { handleMessageCreate } from './events/messageCreate';
+import { handleInteractionCreate } from './events/interactionCreate';
 import { logger } from './utils/logger';
-import { handleHelp } from './commands/helper';
-import { handleCreatePost } from './commands/createPost';
+import { env } from './utils/env';
 import { connectRedis } from './utils/redis';
 
-const app = express();
-const PORT = Number(process.env.PORT) || 3000;
-
-app.get('/ping', (_req, res) => {
-    logger.info('ping 수신');
-    res.status(200).send('pong');
+export const client = new Client({
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent, // 텍스트 내용 수신 권한
+        GatewayIntentBits.GuildVoiceStates, // 음성 채널 상태 권한
+        GatewayIntentBits.GuildMembers, // Server Members Intent
+        GatewayIntentBits.GuildPresences, // Presence Intent
+        GatewayIntentBits.DirectMessages,
+        GatewayIntentBits.GuildScheduledEvents,
+    ],
+    partials: [
+        Partials.Channel, // DM 채널 이벤트를 정상 수신하기 위해 필수
+        Partials.Message, // 안 읽은/이전 메시지 이벤트 처리
+        Partials.GuildMember, // 서버 멤버 데이터 처리
+    ],
+});
+client.once(Events.ClientReady, (readyClient) => {
+    logger.info(`젤리봇 연결 성공`);
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-    logger.info(`웹 서버가 ${PORT} 포트에서 구동 중입니다.`);
-});
+// 이벤트 리스너 연결
+client.on('messageCreate', handleMessageCreate);
+client.on('interactionCreate', handleInteractionCreate);
 
-const client = new Client({
-    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
-});
-
-client.once('clientReady', () => {
-    logger.info(`젤리봇 로그인 성공: ${client.user?.tag}`);
-});
-
-client.on('interactionCreate', async (interaction) => {
-    if (!interaction.isChatInputCommand()) return;
-
+async function bootstrap() {
     try {
-        await interaction.deferReply({ flags: 64 });
+        await connectRedis(); // Redis 서버 연결
 
-        const forumChannel = await getForumChannel(client, env.forumChannelId);
-
-        switch (interaction.commandName) {
-            case '도움말':
-                await handleHelp({ interaction, forumChannel });
-                break;
-
-            case '생성':
-                await handleCreatePost({ interaction, forumChannel });
-                break;
-
-            case '검색':
-                await handleSearch({ interaction, forumChannel });
-                break;
-
-            case '등록':
-                await handleRegister({ interaction, forumChannel, client });
-                break;
-
-            case '조회':
-                await handleView({ interaction, forumChannel });
-                break;
-
-            case '삭제':
-                await handleDelete({ interaction, forumChannel, client });
-                break;
-
-            case '수정':
-                await handleUpdate({ interaction, forumChannel, client });
-                break;
-
-            case '통계':
-                await handleStats({ interaction, forumChannel });
-                break;
-            case '직업변경':
-                await handleChangeJob({ interaction, forumChannel, client });
-                break;
-            case '중복검사':
-                await handleCheckDuplicate({ interaction, forumChannel });
-                break;
-
-            default:
-                await interaction.editReply('지원하지 않는 명령어입니다.');
-        }
-    } catch (error: unknown) {
-        logger.error('명령어 처리 중 오류 발생:', error);
-
-        if (interaction.deferred || interaction.replied) {
-            await interaction.editReply('명령어 처리 중 오류가 발생했습니다.').catch(() => {});
-            return;
-        }
-
-        await interaction
-            .reply({
-                content: '봇이 채널에 접근할 수 없습니다.',
-            })
-            .catch(() => {});
+        await client.login(env.token); // 디스코드 로그인
+    } catch (error) {
+        logger.error('앱 실행 초기화 오류:', error);
     }
-});
-
-async function start() {
-    await connectRedis();
-    await client.login(env.token);
 }
-start().then(() => {});
+
+bootstrap();
