@@ -1,18 +1,9 @@
 import { Client, GatewayIntentBits } from 'discord.js';
-import { handleDelete } from './commands/delete';
-import { handleRegister } from './commands/register';
-import { handleSearch } from './commands/search';
-import { handleView } from './commands/view';
-import { getForumChannel } from './services/forumService';
+
 import { env } from './utils/env';
 import express from 'express';
-import { handleUpdate } from './commands/update';
-import { handleStats } from './commands/stats';
-import { handleChangeJob } from './commands/changeJob';
-import { handleCheckDuplicate } from './commands/checkDuplicate';
 import { logger } from './utils/logger';
 import { handleHelp } from './commands/helper';
-import { handleCreatePost } from './commands/createPost';
 import { connectRedis } from './utils/redis';
 
 const app = express();
@@ -41,45 +32,9 @@ client.on('interactionCreate', async (interaction) => {
     try {
         await interaction.deferReply({ flags: 64 });
 
-        const forumChannel = await getForumChannel(client, env.forumChannelId);
-
         switch (interaction.commandName) {
             case '도움말':
-                await handleHelp({ interaction, forumChannel });
-                break;
-
-            case '생성':
-                await handleCreatePost({ interaction, forumChannel });
-                break;
-
-            case '검색':
-                await handleSearch({ interaction, forumChannel });
-                break;
-
-            case '등록':
-                await handleRegister({ interaction, forumChannel, client });
-                break;
-
-            case '조회':
-                await handleView({ interaction, forumChannel });
-                break;
-
-            case '삭제':
-                await handleDelete({ interaction, forumChannel, client });
-                break;
-
-            case '수정':
-                await handleUpdate({ interaction, forumChannel, client });
-                break;
-
-            case '통계':
-                await handleStats({ interaction, forumChannel });
-                break;
-            case '직업변경':
-                await handleChangeJob({ interaction, forumChannel, client });
-                break;
-            case '중복검사':
-                await handleCheckDuplicate({ interaction, forumChannel });
+                await handleHelp({ interaction });
                 break;
 
             default:
