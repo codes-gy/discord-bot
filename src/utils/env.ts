@@ -7,7 +7,8 @@ export const env = {
     clientId: process.env.APPLICATION_ID!,
     forumChannelId: process.env.FORUM_CHANNEL_ID!,
     MAX_DISCORD_MESSAGE_LENGTH: 1900,
-    REDIS_URL: process.env.REDIS_URL!,
+    redisUrl: process.env.REDIS_URL!,
+    guildId: process.env.GUILD_ID!,
 };
 
 if (!env.token) throw new Error('DISCORD_TOKEN이 없습니다.');
