@@ -9,12 +9,15 @@ import {
     entersState,
 } from '@discordjs/voice';
 import play from 'play-dl';
+import youtubeDl from 'youtube-dl-exec';
 import { VoiceBasedChannel } from 'discord.js';
 import { logger } from '../utils/logger';
 
-interface Song {
+export interface Song {
     title: string;
     url: string;
+    channel?: string;
+    duration?: string;
 }
 
 class MusicService {
@@ -23,27 +26,27 @@ class MusicService {
     private queues = new Map<string, Song[]>();
     private isPlaying = new Map<string, boolean>();
 
-    async addAndPlay(guildId: string, voiceChannel: VoiceBasedChannel, query: string): Promise<string> {
-        // 1. 유튜브 검색 또는 URL 정보 가져오기
-        let songInfo: Song;
-        if (play.yt_validate(query) === 'video') {
-            const info = await play.video_info(query);
-            songInfo = { title: info.video_details.title || '제목 없음', url: info.video_details.url };
-        } else {
-            const searchResults = await play.search(query, { limit: 1, source: { youtube: 'video' } });
-            if (!searchResults.length) throw new Error('검색 결과를 찾을 수 없습니다.');
-            songInfo = { title: searchResults[0].title || '제목 없음', url: searchResults[0].url };
-        }
+    // 💡 1. 상위 5개 노래 검색 로직
+    async searchSongs(query: string): Promise<Song[]> {
+        const searchResults = await play.search(query, { limit: 5, source: { youtube: 'video' } });
+        if (!searchResults.length) throw new Error('검색 결과를 찾을 수 없습니다.');
 
-        // 2. 큐 등록
+        return searchResults.map((item) => ({
+            title: item.title || '제목 없음',
+            url: item.url,
+            channel: item.channel?.name || '알 수 없는 채널',
+            duration: item.durationRaw || '시간 정보 없음',
+        }));
+    }
+
+    // 💡 2. 선택된 노래 큐 추가 및 재생
+    async addAndPlaySong(guildId: string, voiceChannel: VoiceBasedChannel, songInfo: Song): Promise<string> {
         if (!this.queues.has(guildId)) this.queues.set(guildId, []);
         this.queues.get(guildId)!.push(songInfo);
 
-        // 3. 음성 채널 접속 및 플레이어 준비
         const connection = await this.getOrCreateConnection(guildId, voiceChannel);
         const player = this.getOrCreatePlayer(guildId, connection);
 
-        // 4. 재생 중이 아니라면 바로 재생 시작
         if (!this.isPlaying.get(guildId)) {
             await this.playNext(guildId, player);
         }
@@ -62,11 +65,20 @@ class MusicService {
         const nextSong = queue.shift()!;
 
         try {
-            // 💡 play-dl을 통해 오디오 스트림 추출
-            const stream = await play.stream(nextSong.url);
-            const resource = createAudioResource(stream.stream, {
-                inputType: stream.type,
-            });
+            const output = (await youtubeDl(nextSong.url, {
+                dumpSingleJson: true,
+                noCheckCertificates: true,
+                noWarnings: true,
+                preferFreeFormats: true,
+                addHeader: ['referer:youtube.com', 'user-agent:googlebot'],
+            })) as any;
+
+            const audioFormat = output.formats?.find((f: any) => f.acodec !== 'none' && f.vcodec === 'none');
+            const streamUrl = audioFormat ? audioFormat.url : output.url;
+
+            if (!streamUrl) throw new Error('스트림 URL을 추출할 수 없습니다.');
+
+            const resource = createAudioResource(streamUrl);
 
             player.play(resource);
             logger.info(`[Music] 재생 시작: ${nextSong.title}`);
@@ -80,23 +92,40 @@ class MusicService {
         let connection = this.connections.get(guildId);
 
         if (!connection || connection.state.status === VoiceConnectionStatus.Destroyed) {
-            connection = joinVoiceChannel({
+            const newConnection = joinVoiceChannel({
                 channelId: voiceChannel.id,
                 guildId: guildId,
                 adapterCreator: voiceChannel.guild.voiceAdapterCreator,
                 selfDeaf: true,
             });
 
-            await entersState(connection, VoiceConnectionStatus.Ready, 5_000);
+            try {
+                await entersState(newConnection, VoiceConnectionStatus.Ready, 5_000);
+            } catch (error) {
+                newConnection.destroy();
+                throw error;
+            }
 
-            connection.on(VoiceConnectionStatus.Destroyed, () => {
+            newConnection.on(VoiceConnectionStatus.Disconnected, async () => {
+                try {
+                    await Promise.race([
+                        entersState(newConnection, VoiceConnectionStatus.Signalling, 5_000),
+                        entersState(newConnection, VoiceConnectionStatus.Connecting, 5_000),
+                    ]);
+                } catch (error) {
+                    newConnection.destroy();
+                }
+            });
+
+            newConnection.on(VoiceConnectionStatus.Destroyed, () => {
                 this.connections.delete(guildId);
                 this.players.delete(guildId);
                 this.queues.delete(guildId);
                 this.isPlaying.delete(guildId);
             });
 
-            this.connections.set(guildId, connection);
+            this.connections.set(guildId, newConnection);
+            return newConnection;
         }
 
         return connection;
