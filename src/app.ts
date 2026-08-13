@@ -1,3 +1,5 @@
+import path from 'path';
+import fs from 'fs';
 import { Client, GatewayIntentBits, Events, Partials } from 'discord.js';
 import { handleMessageCreate } from './events/messageCreate';
 import { handleInteractionCreate } from './events/interactionCreate';
@@ -41,12 +43,20 @@ client.once(Events.ClientReady, (readyClient) => {
 // 이벤트 리스너 연결
 client.on('messageCreate', handleMessageCreate);
 client.on('interactionCreate', handleInteractionCreate);
+function initCookie() {
+    if (process.env.YOUTUBE_COOKIES_BASE64) {
+        const rootCookiePath = path.join(process.cwd(), 'cookies.txt');
+        const cookieData = Buffer.from(process.env.YOUTUBE_COOKIES_BASE64, 'base64').toString('utf-8');
 
+        fs.writeFileSync(rootCookiePath, cookieData);
+        logger.info('cookies.txt 생성이 완료되었습니다.');
+    }
+}
 async function bootstrap() {
     try {
+        initCookie();
         await connectRedis(); // Redis 서버 연결
-
-        await client.login(env.token); // 디스코드 로그인
+        await client.login(env.token);
     } catch (error) {
         logger.error('앱 실행 초기화 오류:', error);
     }
