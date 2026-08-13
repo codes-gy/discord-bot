@@ -65,25 +65,19 @@ class MusicService {
         const nextSong = queue.shift()!;
 
         try {
-            const output = (await youtubeDl(nextSong.url, {
-                dumpSingleJson: true,
-                noCheckCertificates: true,
-                noWarnings: true,
-                preferFreeFormats: true,
-                addHeader: ['referer:youtube.com', 'user-agent:googlebot'],
-            })) as any;
+            // play-dl의 stream 기능을 이용하여 안전하게 스트림을 가져옵니다.
+            const stream = await play.stream(nextSong.url);
 
-            const audioFormat = output.formats?.find((f: any) => f.acodec !== 'none' && f.vcodec === 'none');
-            const streamUrl = audioFormat ? audioFormat.url : output.url;
-
-            if (!streamUrl) throw new Error('스트림 URL을 추출할 수 없습니다.');
-
-            const resource = createAudioResource(streamUrl);
+            // inputType을 지정하여 디스코드 플레이어가 오디오 스트림을 올바르게 디코딩하도록 합니다.
+            const resource = createAudioResource(stream.stream, {
+                inputType: stream.type,
+            });
 
             player.play(resource);
             logger.info(`[Music] 재생 시작: ${nextSong.title}`);
         } catch (error) {
             logger.error(`[Music Play Error] ${guildId}:`, error);
+            // 에러 발생 시 다음 곡으로 진행
             await this.playNext(guildId, player);
         }
     }
