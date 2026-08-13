@@ -5,6 +5,18 @@ import { logger } from './utils/logger';
 import { env } from './utils/env';
 import { connectRedis } from './utils/redis';
 
+import http from 'http';
+
+// Render가 주입하는 PORT 환경변수 사용 (기본값 10000)
+const PORT = process.env.PORT || 10000;
+
+http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('젤리봇 실행 중!');
+}).listen(PORT, () => {
+    logger.info(`server listening on port ${PORT}`);
+});
+
 export const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
