@@ -9,7 +9,6 @@ export const playCommand = createCommand(
             .setDescription('유튜브 노래를 검색하여 선택한 후 재생합니다.')
             .addStringOption((option) => option.setName('검색어').setDescription('노래 제목').setRequired(true)),
     async (interaction) => {
-        // 💡 이미 상위 핸들러에서 deferReply()나 reply()가 호출되지 않은 경우에만 실행
         if (!interaction.deferred && !interaction.replied) {
             await interaction.deferReply();
         }

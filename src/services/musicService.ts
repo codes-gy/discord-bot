@@ -148,6 +148,32 @@ class MusicService {
 
         return player;
     }
+
+    stop(guildId: string): boolean {
+        const connection = this.connections.get(guildId);
+        const player = this.players.get(guildId);
+
+        // 재생 중이거나 접속된 상태가 아니라면 false 반환
+        if (!connection && !player) return false;
+
+        // 1. 큐 및 재생 상태 초기화
+        this.queues.delete(guildId);
+        this.isPlaying.set(guildId, false);
+
+        // 2. 플레이어 정지
+        if (player) {
+            player.stop();
+            this.players.delete(guildId);
+        }
+
+        // 3. 음성 채널 연결 해제 및 맵 정리
+        if (connection) {
+            connection.destroy();
+            this.connections.delete(guildId);
+        }
+
+        return true;
+    }
 }
 
 export const musicService = new MusicService();
