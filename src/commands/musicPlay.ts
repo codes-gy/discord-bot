@@ -1,4 +1,4 @@
-import { ActionRowBuilder, StringSelectMenuBuilder, ComponentType, MessageFlags } from 'discord.js';
+import { ActionRowBuilder, StringSelectMenuBuilder, ComponentType } from 'discord.js';
 import { createCommand } from './helper';
 import { musicService } from '../services/musicService';
 
@@ -10,7 +10,7 @@ export const playCommand = createCommand(
             .addStringOption((option) => option.setName('검색어').setDescription('노래 제목').setRequired(true)),
     async (interaction) => {
         if (!interaction.deferred && !interaction.replied) {
-            await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+            await interaction.deferReply();
         }
 
         const query = interaction.options.getString('검색어', true);

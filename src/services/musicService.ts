@@ -1,5 +1,3 @@
-import path from 'path';
-import fs from 'fs';
 import {
     joinVoiceChannel,
     createAudioPlayer,
@@ -9,14 +7,11 @@ import {
     VoiceConnectionStatus,
     AudioPlayer,
     entersState,
-    StreamType,
 } from '@discordjs/voice';
 import play from 'play-dl';
-import ytdl from 'youtube-dl-exec';
+import youtubeDl from 'youtube-dl-exec';
 import { VoiceBasedChannel } from 'discord.js';
 import { logger } from '../utils/logger';
-
-const COOKIE_PATH = path.join(process.cwd(), 'cookies.txt');
 
 export interface Song {
     title: string;
@@ -70,27 +65,12 @@ class MusicService {
         const nextSong = queue.shift()!;
 
         try {
-            const ytdlOptions: Record<string, any> = {
-                output: '-',
-                format: 'bestaudio/best',
-                quiet: true,
-            };
-
-            if (fs.existsSync(COOKIE_PATH)) {
-                ytdlOptions.cookies = COOKIE_PATH;
-                logger.info('[Music] 루트의 cookies.txt를 사용하여 오디오 추출 중...');
-            } else {
-                logger.warn('[Music] cookies.txt를 찾지 못해 쿠키 없이 진행합니다.');
-            }
-            const subprocess = ytdl.exec(nextSong.url, ytdlOptions);
-
-            if (!subprocess.stdout) {
-                throw new Error('오디오 스트림을 생성할 수 없습니다.');
-            }
+            // play-dl의 stream 기능을 이용하여 안전하게 스트림을 가져옵니다.
+            const stream = await play.stream(nextSong.url);
 
             // inputType을 지정하여 디스코드 플레이어가 오디오 스트림을 올바르게 디코딩하도록 합니다.
-            const resource = createAudioResource(subprocess.stdout, {
-                inputType: StreamType.Arbitrary,
+            const resource = createAudioResource(stream.stream, {
+                inputType: stream.type,
             });
 
             player.play(resource);
