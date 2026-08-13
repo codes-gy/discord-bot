@@ -9,7 +9,11 @@ export const playCommand = createCommand(
             .setDescription('유튜브 노래를 검색하여 선택한 후 재생합니다.')
             .addStringOption((option) => option.setName('검색어').setDescription('노래 제목').setRequired(true)),
     async (interaction) => {
-        await interaction.deferReply();
+        // 💡 이미 상위 핸들러에서 deferReply()나 reply()가 호출되지 않은 경우에만 실행
+        if (!interaction.deferred && !interaction.replied) {
+            await interaction.deferReply();
+        }
+
         const query = interaction.options.getString('검색어', true);
         const member = await interaction.guild?.members.fetch(interaction.user.id);
         const voiceChannel = member?.voice.channel;
@@ -20,10 +24,10 @@ export const playCommand = createCommand(
         }
 
         try {
-            // 1. 노래 5개 검색
+            // 1. 노래 10개 검색
             const searchResults = await musicService.searchSongs(query);
 
-            // 2. 선택 드롭다운 생성 (디스코드 문자 수 제한 100자 고려)
+            // 2. 선택 드롭다운 생성
             const selectMenu = new StringSelectMenuBuilder()
                 .setCustomId('select_song')
                 .setPlaceholder('🎵 재생할 노래를 선택해 주세요 (30초 제한)')
@@ -42,11 +46,11 @@ export const playCommand = createCommand(
                 components: [row],
             });
 
-            // 3. 사용자 입력 수집기 (Collector) 생성
+            // 3. 사용자 입력 수집기 생성
             const collector = response.createMessageComponentCollector({
                 componentType: ComponentType.StringSelect,
-                filter: (i) => i.user.id === interaction.user.id, // 명령어를 입력한 당사자만 선택 가능
-                time: 30_000, // 30초 응답 시간
+                filter: (i) => i.user.id === interaction.user.id,
+                time: 30_000,
             });
 
             collector.on('collect', async (menuInteraction) => {
@@ -57,8 +61,8 @@ export const playCommand = createCommand(
                 try {
                     const title = await musicService.addAndPlaySong(interaction.guildId!, voiceChannel, selectedSong);
                     await interaction.editReply({
-                        content: `🎵 ${title} 을(를) 추가했습니다.`,
-                        components: [], // 선택 완료 시 선택 박스 제거
+                        content: `🎵 **${title}** 을(를) 추가했습니다.`,
+                        components: [],
                     });
                 } catch (error) {
                     await interaction.editReply({
@@ -72,7 +76,7 @@ export const playCommand = createCommand(
             collector.on('end', async (collected, reason) => {
                 if (reason === 'time' && collected.size === 0) {
                     await interaction.editReply({
-                        content: '다시 명령어를 입력해 주세요.',
+                        content: '시간이 초과되었습니다. 다시 명령어를 입력해 주세요.',
                         components: [],
                     });
                 }

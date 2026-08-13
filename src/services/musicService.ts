@@ -26,9 +26,9 @@ class MusicService {
     private queues = new Map<string, Song[]>();
     private isPlaying = new Map<string, boolean>();
 
-    // 💡 1. 상위 5개 노래 검색 로직
+    // 1. 상위 5개 노래 검색 로직
     async searchSongs(query: string): Promise<Song[]> {
-        const searchResults = await play.search(query, { limit: 5, source: { youtube: 'video' } });
+        const searchResults = await play.search(query, { limit: 10, source: { youtube: 'video' } });
         if (!searchResults.length) throw new Error('검색 결과를 찾을 수 없습니다.');
 
         return searchResults.map((item) => ({
@@ -39,7 +39,7 @@ class MusicService {
         }));
     }
 
-    // 💡 2. 선택된 노래 큐 추가 및 재생
+    // 2. 선택된 노래 큐 추가 및 재생
     async addAndPlaySong(guildId: string, voiceChannel: VoiceBasedChannel, songInfo: Song): Promise<string> {
         if (!this.queues.has(guildId)) this.queues.set(guildId, []);
         this.queues.get(guildId)!.push(songInfo);
