@@ -11,7 +11,7 @@ export async function handleInteractionCreate(interaction: Interaction): Promise
     if (!handler) return;
 
     try {
-        // 💡 상위 핸들러의 일괄 deferReply를 제거하여 각 커맨드가 공개/비공개 여부를 직접 결정하게 합니다.
+        // 상위 핸들러의 일괄 deferReply를 제거하여 각 커맨드가 공개/비공개 여부를 직접 결정하게 합니다.
         await handler(interaction);
     } catch (error) {
         logger.error(`[${interaction.commandName}] 명령어 처리 오류:`, error);

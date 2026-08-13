@@ -1,9 +1,13 @@
 import { createCommand } from './helper';
 import { channelRepository } from '../repositories/channelRepository';
+import { MessageFlags } from 'discord.js';
 
 export const unregisterChannelCommand = createCommand(
     (command) => command.setName('채널해제').setDescription('현재 텍스트 채널의 TTS 자동 읽기 설정을 해제합니다.'),
     async (interaction) => {
+        if (!interaction.deferred && !interaction.replied) {
+            await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+        }
         const channelId = interaction.channelId;
         const guildId = interaction.guildId;
 
