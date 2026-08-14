@@ -1,12 +1,11 @@
 import { createCommand } from './helper';
 import { channelRepository } from '../repositories/channelRepository';
-import { MessageFlags } from 'discord.js';
 
 export const registerChannelCommand = createCommand(
     (command) => command.setName('채널등록').setDescription('현재 텍스트 채널을 TTS 자동 읽기 채널로 등록합니다.'),
     async (interaction) => {
         if (!interaction.deferred && !interaction.replied) {
-            await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+            await interaction.deferReply({ ephemeral: true });
         }
 
         const channelId = interaction.channelId;

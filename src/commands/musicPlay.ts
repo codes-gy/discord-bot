@@ -10,7 +10,7 @@ export const playCommand = createCommand(
             .addStringOption((option) => option.setName('검색어').setDescription('노래 제목').setRequired(true)),
     async (interaction) => {
         if (!interaction.deferred && !interaction.replied) {
-            await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+            await interaction.deferReply({ ephemeral: true });
         }
 
         const query = interaction.options.getString('검색어', true);
@@ -29,7 +29,7 @@ export const playCommand = createCommand(
             // 2. 선택 드롭다운 생성
             const selectMenu = new StringSelectMenuBuilder()
                 .setCustomId('select_song')
-                .setPlaceholder('🎵 재생할 노래를 선택해 주세요 (30초 제한)')
+                .setPlaceholder('재생할 노래를 선택해 주세요')
                 .addOptions(
                     searchResults.map((song, index) => ({
                         label: `${index + 1}. ${song.title}`.slice(0, 100),
@@ -41,7 +41,7 @@ export const playCommand = createCommand(
             const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu);
 
             const response = await interaction.editReply({
-                content: `**"${query}"** 검색 결과입니다. 재생할 노래를 선택해 주세요!`,
+                content: `"${query}" 검색 결과입니다. 재생할 노래를 선택해 주세요!`,
                 components: [row],
             });
 
@@ -60,7 +60,7 @@ export const playCommand = createCommand(
                 try {
                     const title = await musicService.addAndPlaySong(interaction.guildId!, voiceChannel, selectedSong);
                     await interaction.editReply({
-                        content: `🎵 **${title}** 을(를) 추가했습니다.`,
+                        content: `${title} 을(를) 추가했습니다.`,
                         components: [],
                     });
                 } catch (error) {
