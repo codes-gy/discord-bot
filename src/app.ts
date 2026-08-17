@@ -2,6 +2,7 @@ import path from 'path';
 import fs from 'fs';
 import http from 'http';
 import { Events } from 'discord.js';
+import { generateDependencyReport } from '@discordjs/voice';
 import { client } from '@/libs/discordClient';
 import { handleMessageCreate } from '@/events/messageCreate';
 import { handleInteractionCreate } from '@/events/interactionCreate';
@@ -73,6 +74,9 @@ function initCookie(): void {
 
 async function bootstrap(): Promise<void> {
     try {
+        // Opus 인코더(@discordjs/opus 등)와 암호화 라이브러리(sodium 등)가 실제로 로드됐는지 확인하기 위한 진단 로그.
+        // "봇은 입장하는데 소리가 안 나옴" 증상의 원인 파악에 필요해 배포 로그에 항상 남긴다.
+        logger.info(`@discordjs/voice 의존성 리포트:\n${generateDependencyReport()}`);
         initCookie();
         await initYoutubeCookies();
         await connectRedis(); // Redis 서버 연결 (TTS 채널 등록 영속화용)

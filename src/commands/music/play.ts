@@ -2,7 +2,7 @@ import { SlashCommandBuilder, PermissionFlagsBits, type ChatInputCommandInteract
 import type { Command, QueueItem } from '@/types';
 import { resolveTrack } from '@/services/audio/youtubeService';
 import { joinAndEnqueue } from '@/services/audio/playerOrchestrator';
-import { buildNowPlayingEmbed, buildQueueAddedEmbed, buildEmptyStateEmbed } from '@/utils/embeds';
+import { buildNowPlayingEmbed, buildQueueAddedEmbed, buildEmptyStateEmbed, buildErrorEmbed } from '@/utils/embeds';
 import { handleCommandError, safeReply } from '@/utils/errorHandler';
 
 const command: Command = {
@@ -11,8 +11,8 @@ const command: Command = {
         .setDescription('유튜브 URL 또는 검색어로 음악을 재생하거나 대기열에 추가해요.')
         .addStringOption((option) => option.setName('검색어').setDescription('유튜브 URL 또는 검색할 키워드').setRequired(true)),
     execute: async (interaction: ChatInputCommandInteraction): Promise<void> => {
-        // 디스코드 API 3초 제약(Interaction Timeout) 방지를 위해 최우선으로 defer
-        await interaction.deferReply();
+        // 디스코드 API 3초 제약(Interaction Timeout) 방지를 위해 최우선으로 defer. 모든 응답은 비공개(ephemeral)로 표시한다.
+        await interaction.deferReply({ ephemeral: true });
 
         if (!interaction.guild) {
             await safeReply(interaction, [buildEmptyStateEmbed('서버 전용 명령어예요', '이 명령어는 디스코드 서버 안에서만 사용할 수 있어요.')]);
@@ -52,7 +52,13 @@ const command: Command = {
             const result = await joinAndEnqueue(voiceChannel, interaction.channelId, item);
 
             if (result.startedImmediately) {
-                await safeReply(interaction, [buildNowPlayingEmbed(item, 0)]);
+                if (result.startedItem) {
+                    await safeReply(interaction, [buildNowPlayingEmbed(result.startedItem, result.remainingInQueue ?? 0)]);
+                } else {
+                    await safeReply(interaction, [
+                        buildErrorEmbed('재생을 시작하지 못했어요', '요청한 곡을 재생하지 못해서 대기열이 비었어요. 다른 곡으로 다시 시도해주세요.'),
+                    ]);
+                }
             } else {
                 await safeReply(interaction, [buildQueueAddedEmbed(item, result.position)]);
             }

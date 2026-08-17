@@ -15,6 +15,7 @@ import { forceLeaveGuild } from '@/services/audio/autoLeave';
 const MAX_RECONNECT_ATTEMPTS = 5;
 const BASE_RECONNECT_DELAY_MS = 1000;
 const RECONNECT_WAIT_TIMEOUT_MS = 5000;
+const VOICE_READY_TIMEOUT_MS = 15000;
 
 export function createPlayer(): AudioPlayer {
     return createAudioPlayer({
@@ -26,8 +27,11 @@ export function createPlayer(): AudioPlayer {
 
 /**
  * 음성 채널에 입장하고, 끊김 발생 시 지수 백오프로 자동 재연결을 시도하는 핸들러를 부착한다.
+ * 연결을 반환하기 전 반드시 VoiceConnectionStatus.Ready 상태까지 대기한다 — @discordjs/voice는
+ * 연결이 Ready가 아닌 동안 전송되는 오디오 패킷을 조용히 버리기 때문에, 이 대기 없이 바로
+ * player.play()를 호출하면 "채널에는 들어가지만 소리는 전혀 안 들리는" 증상이 발생한다.
  */
-export function joinChannel(voiceChannel: VoiceBasedChannel): VoiceConnection {
+export async function joinChannel(voiceChannel: VoiceBasedChannel): Promise<VoiceConnection> {
     const connection = joinVoiceChannel({
         channelId: voiceChannel.id,
         guildId: voiceChannel.guild.id,
@@ -37,6 +41,19 @@ export function joinChannel(voiceChannel: VoiceBasedChannel): VoiceConnection {
     });
 
     attachConnectionHandlers(connection, voiceChannel.guild.id);
+
+    try {
+        await entersState(connection, VoiceConnectionStatus.Ready, VOICE_READY_TIMEOUT_MS);
+    } catch (error) {
+        logger.error(
+            `[voice] 음성 연결이 ${VOICE_READY_TIMEOUT_MS}ms 안에 Ready 상태에 도달하지 못했습니다 (guildId=${voiceChannel.guild.id}). ` +
+                '호스팅 환경에서 디스코드 음성(UDP) 트래픽이 차단되어 있을 가능성이 있어요:',
+            error
+        );
+        connection.destroy();
+        throw new Error('음성 채널 연결에 실패했어요 (음성 서버 응답 없음). 잠시 후 다시 시도해주세요.', { cause: error });
+    }
+
     return connection;
 }
 
