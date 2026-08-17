@@ -1,9 +1,9 @@
 import { REST, Routes } from 'discord.js';
-import { commandJsonList } from './commands/index';
-import { env } from './utils/env';
-import { logger } from './utils/logger';
+import { commandJsonList } from '@/commands/index';
+import { env } from '@/libs/env';
+import { logger } from '@/utils/logger';
 
-(async () => {
+(async (): Promise<void> => {
     const rest: REST = new REST({ version: '10' }).setToken(env.token);
     try {
         logger.info('명령어 디스코드에 등록 중...');

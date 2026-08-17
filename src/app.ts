@@ -1,49 +1,67 @@
 import path from 'path';
 import fs from 'fs';
-import { Client, GatewayIntentBits, Events, Partials } from 'discord.js';
-import { handleMessageCreate } from './events/messageCreate';
-import { handleInteractionCreate } from './events/interactionCreate';
-import { logger } from './utils/logger';
-import { env } from './utils/env';
-import { connectRedis } from './utils/redis';
-
 import http from 'http';
+import { Events } from 'discord.js';
+import { client } from '@/libs/discordClient';
+import { handleMessageCreate } from '@/events/messageCreate';
+import { handleInteractionCreate } from '@/events/interactionCreate';
+import { handleVoiceStateUpdate } from '@/events/voiceStateUpdate';
+import { logger } from '@/utils/logger';
+import { env } from '@/libs/env';
+import { connectRedis } from '@/libs/redis';
+import { initYoutubeCookies } from '@/services/audio/youtubeService';
 
-// Render가 주입하는 PORT 환경변수 사용 (기본값 10000)
-const PORT = process.env.PORT || 10000;
-
-http.createServer((req, res) => {
+// Render 등 PaaS가 헬스체크용으로 요구하는 포트 바인딩 유지
+http.createServer((_req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.end('젤리봇 실행 중!');
-}).listen(PORT, () => {
-    logger.info(`server listening on port ${PORT}`);
+}).listen(env.port, () => {
+    logger.info(`server listening on port ${env.port}`);
 });
 
-export const client = new Client({
-    intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent, // 텍스트 내용 수신 권한
-        GatewayIntentBits.GuildVoiceStates, // 음성 채널 상태 권한
-        GatewayIntentBits.GuildMembers, // Server Members Intent
-        GatewayIntentBits.GuildPresences, // Presence Intent
-        GatewayIntentBits.DirectMessages,
-        GatewayIntentBits.GuildScheduledEvents,
-    ],
-    partials: [
-        Partials.Channel, // DM 채널 이벤트를 정상 수신하기 위해 필수
-        Partials.Message, // 안 읽은/이전 메시지 이벤트 처리
-        Partials.GuildMember, // 서버 멤버 데이터 처리
-    ],
-});
 client.once(Events.ClientReady, (readyClient) => {
-    logger.info(`젤리봇 연결 성공`);
+    logger.info(`젤리봇 연결 성공 (${readyClient.user.tag})`);
 });
 
 // 이벤트 리스너 연결
-client.on('messageCreate', handleMessageCreate);
-client.on('interactionCreate', handleInteractionCreate);
-function initCookie() {
+client.on(Events.MessageCreate, (message) => {
+    handleMessageCreate(message).catch((error: unknown) => {
+        logger.error('messageCreate 핸들러에서 처리되지 않은 오류:', error);
+    });
+});
+client.on(Events.InteractionCreate, (interaction) => {
+    handleInteractionCreate(interaction).catch((error: unknown) => {
+        logger.error('interactionCreate 핸들러에서 처리되지 않은 오류:', error);
+    });
+});
+client.on(Events.VoiceStateUpdate, (oldState, newState) => {
+    handleVoiceStateUpdate(oldState, newState).catch((error: unknown) => {
+        logger.error('voiceStateUpdate 핸들러에서 처리되지 않은 오류:', error);
+    });
+});
+
+client.on(Events.Error, (error) => {
+    logger.error('Discord 클라이언트 게이트웨이 에러:', error);
+});
+client.on(Events.ShardDisconnect, (event, shardId) => {
+    logger.warn(`Discord 게이트웨이 연결이 끊어졌습니다 (shardId=${shardId}, code=${event.code}). discord.js가 자동 재연결을 시도합니다.`);
+});
+client.on(Events.ShardReconnecting, (shardId) => {
+    logger.info(`Discord 게이트웨이 재연결 시도 중... (shardId=${shardId})`);
+});
+client.on(Events.ShardResume, (shardId) => {
+    logger.info(`Discord 게이트웨이 재연결에 성공했습니다. (shardId=${shardId})`);
+});
+
+// 네트워크 유실/미처리 예외로 인해 프로세스 전체가 죽는 것을 방지 (비기능 요구사항)
+process.on('unhandledRejection', (reason) => {
+    logger.error('처리되지 않은 Promise 거부(unhandledRejection):', reason);
+});
+process.on('uncaughtException', (error) => {
+    logger.error('처리되지 않은 예외(uncaughtException):', error);
+});
+
+function initCookie(): void {
     if (process.env.YOUTUBE_COOKIES_BASE64) {
         const rootCookiePath = path.join(process.cwd(), 'cookies.txt');
         const cookieData = Buffer.from(process.env.YOUTUBE_COOKIES_BASE64, 'base64').toString('utf-8');
@@ -52,13 +70,16 @@ function initCookie() {
         logger.info('cookies.txt 생성이 완료되었습니다.');
     }
 }
-async function bootstrap() {
+
+async function bootstrap(): Promise<void> {
     try {
         initCookie();
-        await connectRedis(); // Redis 서버 연결
+        await initYoutubeCookies();
+        await connectRedis(); // Redis 서버 연결 (TTS 채널 등록 영속화용)
         await client.login(env.token);
     } catch (error) {
         logger.error('앱 실행 초기화 오류:', error);
+        process.exitCode = 1;
     }
 }
 
