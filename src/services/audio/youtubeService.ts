@@ -116,11 +116,12 @@ export async function createYoutubeAudioStream(url: string): Promise<AudioStream
 }
 
 async function createFallbackAudioStream(url: string): Promise<AudioStreamResult> {
+    // quiet/noWarnings을 켜두면 yt-dlp가 실패 사유(예: 유튜브 봇 감지로 인한 로그인 요구)를
+    // stderr에 전혀 남기지 않아 원인 파악이 불가능해진다. 실패 시 진단할 수 있도록 끄고 stderr를 직접 수집한다.
+    // (stdout에는 오디오 바이너리만 쓰기 때문에 진행 로그가 늘어나도 오디오 스트림이 오염되지는 않는다.)
     const flags: Record<string, unknown> = {
         output: '-',
         format: 'bestaudio',
-        quiet: true,
-        noWarnings: true,
         noPlaylist: true,
         preferFreeFormats: true,
     };
@@ -129,15 +130,21 @@ async function createFallbackAudioStream(url: string): Promise<AudioStreamResult
     }
 
     const subprocess = youtubeDl.exec(url, flags as Parameters<typeof youtubeDl.exec>[1], {
-        stdio: ['ignore', 'pipe', 'ignore'],
+        stdio: ['ignore', 'pipe', 'pipe'],
     });
 
     if (!subprocess.stdout) {
         throw new Error('youtube-dl-exec 프로세스에서 stdout을 가져오지 못했습니다.');
     }
 
+    let stderrOutput = '';
+    subprocess.stderr?.on('data', (chunk: Buffer) => {
+        stderrOutput += chunk.toString('utf-8');
+    });
+
     subprocess.catch((error: unknown) => {
-        logger.error(`youtube-dl-exec 프로세스 실행 중 에러 (url=${url}):`, error);
+        const stderrSuffix = stderrOutput.trim() ? `\nyt-dlp stderr: ${stderrOutput.trim()}` : '';
+        logger.error(`youtube-dl-exec 프로세스 실행 중 에러 (url=${url}):${stderrSuffix}`, error);
     });
 
     const ffmpeg = new prism.FFmpeg({
