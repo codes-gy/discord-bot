@@ -8,7 +8,8 @@
     "start": "node dist/app.js",
     "dev": "nodemon --watch 'src/**/*.ts' --exec tsx src/app.ts",
     "deploy": "tsx src/deploy-commands.ts",
-    "build": "esbuild src/app.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/app.js"
+    "build": "esbuild src/app.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/app.js",
+    "test": "node --trace-deprecation dist/app.js"
   },
   "keywords": [],
   "author": "",

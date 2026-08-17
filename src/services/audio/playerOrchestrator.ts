@@ -7,7 +7,7 @@ import { buildErrorEmbed, buildNowPlayingEmbed } from '@/utils/embeds';
 import { getServerQueue, setServerQueue } from '@/services/audio/queueStore';
 import { createPlayer, joinChannel } from '@/services/audio/connectionManager';
 import { createYoutubeAudioStream } from '@/services/audio/youtubeService';
-import { buildTtsAudioUrls, createTtsChunkStream } from '@/services/audio/ttsService';
+import { buildTtsAudioChunks, createTtsChunkStream } from '@/services/audio/ttsService';
 import { scheduleIdleQueueLeave, clearIdleQueueTimer, clearEmptyChannelTimer, forceLeaveGuild } from '@/services/audio/autoLeave';
 
 /**
@@ -63,6 +63,18 @@ function attachMusicPlayerLifecycle(serverQueue: ServerQueue): void {
 
     serverQueue.ttsPlayer.on('error', (error) => {
         logger.error(`[player] TTS 재생 중 에러 발생 (guildId=${serverQueue.guildId}):`, error);
+    });
+
+    // 실제로 오디오가 몇 ms나 재생됐는지 로그로 남긴다. playbackDuration이 비정상적으로 짧다면
+    // (예: 0ms에 가깝게 Idle로 바로 전이) 리소스는 만들어졌지만 실제 오디오 데이터는 전달되지 않았다는 뜻이라
+    // 연결/구독 문제를 구분하는 데 중요한 단서가 된다.
+    serverQueue.ttsPlayer.on('stateChange', (oldState, newState) => {
+        logger.info(
+            `[tts] ttsPlayer 상태 변화 (guildId=${serverQueue.guildId}): ${oldState.status} -> ${newState.status}` +
+                (oldState.status === AudioPlayerStatus.Playing && 'playbackDuration' in oldState
+                    ? ` (재생 시간: ${oldState.playbackDuration}ms)`
+                    : '')
+        );
     });
 }
 
@@ -196,8 +208,8 @@ export async function interruptWithTts(voiceChannel: VoiceBasedChannel, textChan
     clearEmptyChannelTimer(guildId);
     clearIdleQueueTimer(guildId);
 
-    const audioUrls = buildTtsAudioUrls(text);
-    if (audioUrls.length === 0) {
+    const audioChunks = await buildTtsAudioChunks(text);
+    if (audioChunks.length === 0) {
         return;
     }
 
@@ -210,8 +222,8 @@ export async function interruptWithTts(voiceChannel: VoiceBasedChannel, textChan
     }
 
     try {
-        for (const audioUrl of audioUrls) {
-            await playTtsChunk(serverQueue, audioUrl);
+        for (const base64Audio of audioChunks) {
+            await playTtsChunk(serverQueue, base64Audio);
         }
     } catch (error) {
         logger.error(`[tts] TTS 재생 중 오류가 발생했습니다 (guildId=${guildId}):`, error);
@@ -230,8 +242,8 @@ export async function interruptWithTts(voiceChannel: VoiceBasedChannel, textChan
     }
 }
 
-async function playTtsChunk(serverQueue: ServerQueue, audioUrl: string): Promise<void> {
-    const { stream, inputType } = createTtsChunkStream(audioUrl);
+async function playTtsChunk(serverQueue: ServerQueue, base64Audio: string): Promise<void> {
+    const { stream, inputType } = createTtsChunkStream(base64Audio);
     const resource = createAudioResource(stream, { inputType });
 
     try {
