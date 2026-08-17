@@ -13,21 +13,21 @@ export function buildLoadingEmbed(title: string, description: string): EmbedBuil
 }
 
 export function buildSuccessEmbed(title: string, description: string): EmbedBuilder {
-    return new EmbedBuilder().setColor(COLOR_SUCCESS).setTitle(`✅ ${title}`).setDescription(description);
+    return new EmbedBuilder().setColor(COLOR_SUCCESS).setTitle(`${title}`).setDescription(description);
 }
 
 export function buildErrorEmbed(title: string, description: string): EmbedBuilder {
-    return new EmbedBuilder().setColor(COLOR_ERROR).setTitle(`⚠️ ${title}`).setDescription(description);
+    return new EmbedBuilder().setColor(COLOR_ERROR).setTitle(`${title}`).setDescription(description);
 }
 
 export function buildEmptyStateEmbed(title: string, description: string): EmbedBuilder {
-    return new EmbedBuilder().setColor(COLOR_EMPTY).setTitle(`📭 ${title}`).setDescription(description);
+    return new EmbedBuilder().setColor(COLOR_EMPTY).setTitle(`${title}`).setDescription(description);
 }
 
 export function buildNowPlayingEmbed(item: QueueItem, remainingInQueue: number): EmbedBuilder {
     const embed = new EmbedBuilder()
         .setColor(COLOR_SUCCESS)
-        .setTitle('🎶 재생을 시작했어요')
+        .setTitle('재생을 시작했어요')
         .setDescription(`[${item.title}](${item.url})`)
         .addFields(
             { name: '재생 시간', value: formatDuration(item.durationSec), inline: true },
@@ -57,7 +57,7 @@ export function buildQueueAddedEmbed(item: QueueItem, position: number): EmbedBu
 }
 
 export function buildQueueListEmbed(current: QueueItem | null, queue: QueueItem[]): EmbedBuilder {
-    const embed = new EmbedBuilder().setColor(COLOR_INFO).setTitle('🎧 재생목록');
+    const embed = new EmbedBuilder().setColor(COLOR_INFO).setTitle('재생목록');
 
     if (current) {
         embed.addFields({
