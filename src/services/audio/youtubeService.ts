@@ -115,6 +115,8 @@ export async function createYoutubeAudioStream(url: string): Promise<AudioStream
     }
 }
 
+const STDOUT_FIRST_BYTE_TIMEOUT_MS = 20_000;
+
 async function createFallbackAudioStream(url: string): Promise<AudioStreamResult> {
     // quiet/noWarnings을 켜두면 yt-dlp가 실패 사유(예: 유튜브 봇 감지로 인한 로그인 요구)를
     // stderr에 전혀 남기지 않아 원인 파악이 불가능해진다. 실패 시 진단할 수 있도록 끄고 stderr를 직접 수집한다.
@@ -124,6 +126,11 @@ async function createFallbackAudioStream(url: string): Promise<AudioStreamResult
         format: 'bestaudio',
         noPlaylist: true,
         preferFreeFormats: true,
+        // yt-dlp는 유튜브의 서명/PoToken JS 챌린지를 풀 JS 런타임이 없으면 정상 공개 영상도
+        // "This video is not available"/로그인 필요로 오판하는 경우가 많다 (yt-dlp 최근 버전 기준).
+        // 별도 런타임(Deno 등)을 새로 설치하는 대신, 이미 이 봇을 구동 중인 Node.js 실행 파일을
+        // 그대로 JS 런타임으로 재사용한다 — 로컬/Render 어디서든 추가 설치 없이 동작한다.
+        jsRuntimes: `node:${process.execPath}`,
     };
     if (fs.existsSync(COOKIE_FILE_PATH)) {
         flags.cookies = COOKIE_FILE_PATH;
@@ -133,7 +140,10 @@ async function createFallbackAudioStream(url: string): Promise<AudioStreamResult
         stdio: ['ignore', 'pipe', 'pipe'],
     });
 
-    if (!subprocess.stdout) {
+    // subprocess.stdout은 tinyspawn이 프로세스 종료 시 "누적된 텍스트 문자열"을 반환하는 getter로
+    // 재정의해버리므로, 스트림으로 계속 사용하려면 종료되기 전에 참조를 한 번만 고정해둬야 한다.
+    const stdoutStream = subprocess.stdout;
+    if (!stdoutStream) {
         throw new Error('youtube-dl-exec 프로세스에서 stdout을 가져오지 못했습니다.');
     }
 
@@ -147,12 +157,46 @@ async function createFallbackAudioStream(url: string): Promise<AudioStreamResult
         logger.error(`youtube-dl-exec 프로세스 실행 중 에러 (url=${url}):${stderrSuffix}`, error);
     });
 
-    const ffmpeg = new prism.FFmpeg({
-        args: ['-analyzeduration', '0', '-loglevel', '0', '-f', 's16le', '-ar', '48000', '-ac', '2'],
+    // yt-dlp가 영상 정보 추출조차 실패하면 stdout에 단 1바이트도 쓰지 않고 곧바로 비정상 종료된다.
+    // 예전에는 이 실패를 확인하지 않고 스트림 객체를 그대로 반환해버려서, 커맨드는 "재생을 시작했어요"라고
+    // 응답하지만 실제로는 무음인 상태로 진행되는 버그가 있었다. 첫 데이터가 오거나 stdout이 먼저 끝나버리는 것 중
+    // 무엇이 먼저 발생하는지를 확인해, 데이터 없이 끝나면 명확한 에러로 실패 처리한다.
+    await new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => {
+            cleanup();
+            reject(new Error('yt-dlp 응답이 너무 오래 걸려요. 잠시 후 다시 시도해주세요.'));
+        }, STDOUT_FIRST_BYTE_TIMEOUT_MS);
+
+        const onData = (): void => {
+            cleanup();
+            resolve();
+        };
+        const onEnded = (): void => {
+            cleanup();
+            const stderrSuffix = stderrOutput.trim() ? ` ${stderrOutput.trim()}` : '';
+            reject(new Error(`yt-dlp가 오디오 스트림을 만들지 못했어요.${stderrSuffix}`));
+        };
+        const cleanup = (): void => {
+            clearTimeout(timer);
+            stdoutStream.off('data', onData);
+            stdoutStream.off('end', onEnded);
+            stdoutStream.off('close', onEnded);
+        };
+
+        stdoutStream.once('data', onData);
+        stdoutStream.once('end', onEnded);
+        stdoutStream.once('close', onEnded);
     });
 
-    subprocess.stdout.pipe(ffmpeg);
-    subprocess.stdout.on('error', (error: unknown) => {
+    const ffmpeg = new prism.FFmpeg({
+        args: ['-analyzeduration', '0', '-loglevel', 'error', '-f', 's16le', '-ar', '48000', '-ac', '2'],
+    });
+    ffmpeg.process.stderr?.on('data', (chunk: Buffer) => {
+        logger.warn(`[youtube] fallback ffmpeg stderr (url=${url}): ${chunk.toString('utf-8').trim()}`);
+    });
+
+    stdoutStream.pipe(ffmpeg);
+    stdoutStream.on('error', (error: unknown) => {
         logger.error(`youtube-dl-exec stdout 스트림 에러 (url=${url}):`, error);
         ffmpeg.destroy();
     });
