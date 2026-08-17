@@ -24,7 +24,6 @@ function optionalEnv(key: string): string | null {
 export const env = {
     token: requireEnv('DISCORD_TOKEN'),
     clientId: requireEnv('APPLICATION_ID'),
-    guildId: optionalEnv('GUILD_ID'),
     redisUrl: requireEnv('REDIS_URL'),
     youtubeCookie: optionalEnv('YOUTUBE_COOKIE'),
     youtubeCookiesBase64: optionalEnv('YOUTUBE_COOKIES_BASE64'),
