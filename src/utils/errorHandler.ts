@@ -7,7 +7,7 @@ import { buildErrorEmbed } from '@/utils/embeds';
  * 디스코드의 "Interaction has already been acknowledged" 에러를 원천적으로 방지하기 위한
  * 유일한 응답 경로로 사용해야 한다.
  */
-export async function safeReply(interaction: ChatInputCommandInteraction, embeds: EmbedBuilder[], ephemeral = false): Promise<void> {
+export async function safeReply(interaction: ChatInputCommandInteraction, embeds: EmbedBuilder[], ephemeral = true): Promise<void> {
     try {
         if (interaction.deferred && !interaction.replied) {
             await interaction.editReply({ embeds });

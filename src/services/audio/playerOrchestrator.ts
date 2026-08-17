@@ -14,13 +14,13 @@ import { scheduleIdleQueueLeave, clearIdleQueueTimer, clearEmptyChannelTimer, fo
  * 해당 길드의 ServerQueue를 가져오거나, 없으면 음성 채널에 입장해 새로 생성한다.
  * musicPlayer/ttsPlayer 두 개를 만들어 connection에는 우선 musicPlayer를 구독시킨다.
  */
-export function ensureServerQueue(voiceChannel: VoiceBasedChannel, textChannelId: string): ServerQueue {
+export async function ensureServerQueue(voiceChannel: VoiceBasedChannel, textChannelId: string): Promise<ServerQueue> {
     const existing = getServerQueue(voiceChannel.guild.id);
     if (existing) {
         return existing;
     }
 
-    const connection = joinChannel(voiceChannel);
+    const connection = await joinChannel(voiceChannel);
     const musicPlayer = createPlayer();
     const ttsPlayer = createPlayer();
     connection.subscribe(musicPlayer);
@@ -80,42 +80,56 @@ function destroyMusicResource(serverQueue: ServerQueue): void {
 export interface EnqueueResult {
     startedImmediately: boolean;
     position: number;
+    /** startedImmediately가 true일 때, 실제로 재생을 시작한 곡. 스트림 추출이 전부 실패하면 null. */
+    startedItem?: QueueItem | null;
+    /** startedImmediately가 true일 때, 재생 시작 직후 남은 대기열 곡 수. */
+    remainingInQueue?: number;
 }
 
 /**
  * 음성 채널 입장(필요 시) + 대기열 등록을 함께 처리한다.
  * 재생 중인 곡도 없고 TTS도 아니라면 즉시 재생을 시작한다.
+ * 이때는 playNext의 채널 알림을 끄고(notify: false) 호출부(커맨드)가 실제로 재생된 곡 정보를 받아
+ * 자신의 interaction 응답으로만 안내한다 — 그렇지 않으면 "재생을 시작했어요" Embed가
+ * (interaction 응답 + playNext의 채널 메시지) 두 번 표시된다.
  */
 export async function joinAndEnqueue(voiceChannel: VoiceBasedChannel, textChannelId: string, item: QueueItem): Promise<EnqueueResult> {
-    const serverQueue = ensureServerQueue(voiceChannel, textChannelId);
+    const serverQueue = await ensureServerQueue(voiceChannel, textChannelId);
     clearIdleQueueTimer(serverQueue.guildId);
     serverQueue.queue.push(item);
     const position = serverQueue.queue.length;
 
     const nothingPlaying = serverQueue.musicPlayer.state.status === AudioPlayerStatus.Idle && !serverQueue.currentItem;
     if (nothingPlaying && !serverQueue.isTtsPlaying) {
-        await playNext(serverQueue.guildId);
-        return { startedImmediately: true, position };
+        const startedItem = await playNext(serverQueue.guildId, { notify: false });
+        return { startedImmediately: true, position, startedItem, remainingInQueue: serverQueue.queue.length };
     }
 
     return { startedImmediately: false, position };
 }
 
+export interface PlayNextOptions {
+    /** 재생 시작/실패를 텍스트 채널에 알릴지 여부. 기본값 true. /재생 커맨드의 즉시재생 경로에서만 false로 넘긴다. */
+    notify?: boolean;
+}
+
 /**
  * 대기열에서 다음 곡을 꺼내 재생한다. 대기열이 비어 있으면 유휴 자동 퇴장 타이머를 예약한다.
- * 스트림 추출 실패 시에는 사용자에게 에러 Embed를 보낸 뒤 자동으로 다음 곡을 시도한다.
+ * 스트림 추출 실패 시에는(notify가 true일 때) 사용자에게 에러 Embed를 보낸 뒤 자동으로 다음 곡을 시도한다.
+ * 실제로 재생을 시작한 곡(QueueItem)을 반환하며, 대기열이 비어있거나 모든 후보가 실패하면 null을 반환한다.
  */
-export async function playNext(guildId: string): Promise<void> {
+export async function playNext(guildId: string, options: PlayNextOptions = {}): Promise<QueueItem | null> {
+    const notify = options.notify ?? true;
     const serverQueue = getServerQueue(guildId);
     if (!serverQueue) {
-        return;
+        return null;
     }
 
     const nextItem = serverQueue.queue.shift();
     if (!nextItem) {
         serverQueue.currentItem = null;
         scheduleIdleQueueLeave(guildId);
-        return;
+        return null;
     }
 
     clearIdleQueueTimer(guildId);
@@ -127,12 +141,17 @@ export async function playNext(guildId: string): Promise<void> {
         serverQueue.musicSourceStream = stream;
         serverQueue.currentItem = nextItem;
         serverQueue.musicPlayer.play(resource);
-        await notifyTextChannel(serverQueue.textChannelId, buildNowPlayingEmbed(nextItem, serverQueue.queue.length));
+        if (notify) {
+            await notifyTextChannel(serverQueue.textChannelId, buildNowPlayingEmbed(nextItem, serverQueue.queue.length));
+        }
+        return nextItem;
     } catch (error) {
         logger.error(`[player] 트랙 재생 실패, 다음 곡으로 넘어갑니다 (guildId=${guildId}, url=${nextItem.url}):`, error);
-        const description = error instanceof Error ? error.message : '알 수 없는 오류로 재생을 건너뛰었어요.';
-        await notifyTextChannel(serverQueue.textChannelId, buildErrorEmbed(`"${nextItem.title}" 재생에 실패했어요`, description));
-        await playNext(guildId);
+        if (notify) {
+            const description = error instanceof Error ? error.message : '알 수 없는 오류로 재생을 건너뛰었어요.';
+            await notifyTextChannel(serverQueue.textChannelId, buildErrorEmbed(`"${nextItem.title}" 재생에 실패했어요`, description));
+        }
+        return playNext(guildId, options);
     }
 }
 
@@ -172,7 +191,7 @@ export async function leaveGuild(guildId: string): Promise<boolean> {
  */
 export async function interruptWithTts(voiceChannel: VoiceBasedChannel, textChannelId: string, text: string): Promise<void> {
     const guildId = voiceChannel.guild.id;
-    const serverQueue = ensureServerQueue(voiceChannel, textChannelId);
+    const serverQueue = await ensureServerQueue(voiceChannel, textChannelId);
 
     clearEmptyChannelTimer(guildId);
     clearIdleQueueTimer(guildId);

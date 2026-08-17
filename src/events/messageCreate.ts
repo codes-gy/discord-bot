@@ -36,5 +36,9 @@ export async function handleMessageCreate(message: Message): Promise<void> {
         await interruptWithTts(voiceChannel, message.channelId, content);
     } catch (error) {
         logger.error(`[messageCreate] TTS 처리 중 오류가 발생했습니다 (guildId=${message.guildId}):`, error);
+        // 서버 로그만으로는 사용자가 실패 사실을 알 수 없으므로, 채널에도 눈에 보이는 실패 신호를 남긴다.
+        await message.react('⚠️').catch((reactError: unknown) => {
+            logger.warn('TTS 실패 안내 리액션 실패:', reactError);
+        });
     }
 }

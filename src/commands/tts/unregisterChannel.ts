@@ -10,7 +10,7 @@ const command: Command = {
         .setDescription('등록된 TTS 자동 읽기 채널 설정을 해제해요.')
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
     execute: async (interaction: ChatInputCommandInteraction): Promise<void> => {
-        await interaction.deferReply();
+        await interaction.deferReply({ ephemeral: true });
 
         if (!interaction.guildId) {
             await safeReply(interaction, [buildEmptyStateEmbed('서버 전용 명령어예요', '이 명령어는 디스코드 서버 안에서만 사용할 수 있어요.')]);
