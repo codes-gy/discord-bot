@@ -108,3 +108,23 @@ export function buildWelcomeEmbed(member: GuildMember): EmbedBuilder {
         .setThumbnail(member.user.displayAvatarURL())
         .addFields({ name: '현재 멤버 수', value: `${member.guild.memberCount}명`, inline: true });
 }
+
+/** /통계 커맨드 응답 임베드 (기획서 F-16). */
+export function buildGuildStatsEmbed(stats: { totalPlays: number; todayPlays: number; topTracks: { title: string; count: number }[] }): EmbedBuilder {
+    const embed = new EmbedBuilder()
+        .setColor(COLOR_INFO)
+        .setTitle('📊 서버 음악 재생 통계')
+        .addFields(
+            { name: '오늘 재생 횟수', value: `${stats.todayPlays}회`, inline: true },
+            { name: '누적 재생 횟수', value: `${stats.totalPlays}회`, inline: true }
+        );
+
+    if (stats.topTracks.length === 0) {
+        embed.addFields({ name: '최다 재생곡 TOP 5', value: '아직 재생 기록이 없어요.' });
+    } else {
+        const lines = stats.topTracks.map((track, index) => `${index + 1}. ${track.title} · ${track.count}회`).join('\n');
+        embed.addFields({ name: '최다 재생곡 TOP 5', value: lines });
+    }
+
+    return embed;
+}

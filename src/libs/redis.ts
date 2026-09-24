@@ -146,3 +146,56 @@ export async function removeWelcomeChannel(guildId: string): Promise<void> {
     await getClient().del(`${WELCOME_CHANNEL_KEY_PREFIX}${guildId}`);
     welcomeChannelCache.set(guildId, null);
 }
+
+const STATS_TOTAL_KEY_PREFIX = 'stats:totalPlays:';
+const STATS_TRACK_KEY_PREFIX = 'stats:trackPlays:'; // Sorted Set (member: 트랙 제목, score: 누적 재생 횟수)
+const STATS_DAILY_KEY_PREFIX = 'stats:daily:';
+const STATS_DAILY_TTL_SECONDS = 60 * 60 * 48; // 이틀 뒤 자동 만료 (하루 치 집계만 필요하므로 여유를 둔 값)
+
+function todayDateKey(): string {
+    return new Date().toISOString().slice(0, 10); // YYYY-MM-DD (UTC 기준)
+}
+
+export interface GuildStats {
+    totalPlays: number;
+    todayPlays: number;
+    topTracks: { title: string; count: number }[];
+}
+
+/**
+ * 곡 재생 1건을 서버 통계에 기록한다 (기획서 F-16). 실패해도 실제 음악 재생을 막아선 안 되므로
+ * 에러를 흡수하고 로그만 남긴다 (호출부인 playNext의 정상 흐름을 절대 방해하지 않기 위함).
+ */
+export async function recordTrackPlay(guildId: string, trackTitle: string): Promise<void> {
+    try {
+        const redisClient = getClient();
+        const dailyKey = `${STATS_DAILY_KEY_PREFIX}${guildId}:${todayDateKey()}`;
+        await Promise.all([
+            redisClient.incr(`${STATS_TOTAL_KEY_PREFIX}${guildId}`),
+            redisClient.zIncrBy(`${STATS_TRACK_KEY_PREFIX}${guildId}`, 1, trackTitle),
+            redisClient.incr(dailyKey).then(() => redisClient.expire(dailyKey, STATS_DAILY_TTL_SECONDS)),
+        ]);
+    } catch (error) {
+        logger.error(`재생 통계 기록 실패 (guildId=${guildId}):`, error);
+    }
+}
+
+/**
+ * /통계 커맨드용 집계 조회. 누적 재생 수, 오늘 재생 수, 최다 재생곡 Top 5를 반환한다.
+ */
+export async function getGuildStats(guildId: string): Promise<GuildStats> {
+    const redisClient = getClient();
+    const dailyKey = `${STATS_DAILY_KEY_PREFIX}${guildId}:${todayDateKey()}`;
+
+    const [totalRaw, todayRaw, topRaw] = await Promise.all([
+        redisClient.get(`${STATS_TOTAL_KEY_PREFIX}${guildId}`),
+        redisClient.get(dailyKey),
+        redisClient.zRangeWithScores(`${STATS_TRACK_KEY_PREFIX}${guildId}`, 0, 4, { REV: true }),
+    ]);
+
+    return {
+        totalPlays: Number(totalRaw ?? 0),
+        todayPlays: Number(todayRaw ?? 0),
+        topTracks: topRaw.map((item) => ({ title: item.value, count: item.score })),
+    };
+}

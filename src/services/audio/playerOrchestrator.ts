@@ -9,6 +9,7 @@ import { createPlayer, joinChannel } from '@/services/audio/connectionManager';
 import { createYoutubeAudioStream } from '@/services/audio/youtubeService';
 import { buildTtsAudioUrls, createTtsChunkStream } from '@/services/audio/ttsService';
 import { scheduleIdleQueueLeave, clearIdleQueueTimer, clearEmptyChannelTimer, forceLeaveGuild } from '@/services/audio/autoLeave';
+import { recordTrackPlay } from '@/libs/redis';
 
 /**
  * 해당 길드의 ServerQueue를 가져오거나, 없으면 음성 채널에 입장해 새로 생성한다.
@@ -158,6 +159,7 @@ export async function playNext(guildId: string, options: PlayNextOptions = {}): 
         serverQueue.musicSourceStream = stream;
         serverQueue.currentItem = nextItem;
         serverQueue.musicPlayer.play(resource);
+        void recordTrackPlay(guildId, nextItem.title); // 통계 기록 실패는 재생 흐름에 영향 주지 않도록 내부에서 흡수함
         if (notify) {
             await notifyTextChannel(serverQueue.textChannelId, buildNowPlayingEmbed(nextItem, serverQueue.queue.length), [buildNowPlayingComponents()]);
         }
