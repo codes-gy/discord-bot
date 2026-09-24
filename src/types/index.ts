@@ -36,7 +36,15 @@ export interface ServerQueue {
     idleLeaveTimer: NodeJS.Timeout | null;
     emptyChannelTimer: NodeJS.Timeout | null;
     reconnectAttempts: number;
+    /** 반복 모드. 'track'은 현재 곡 반복, 'queue'는 대기열 전체 순환. */
+    loopMode: LoopMode;
+    /** 0~100 사이의 재생 볼륨(%). 다음 곡에도 그대로 유지된다. */
+    volume: number;
+    /** /스킵 호출 시 true로 세팅되어, Idle 전이 핸들러가 반복 모드로 인한 재삽입을 건너뛰게 한다. */
+    skipRequested: boolean;
 }
+
+export type LoopMode = 'off' | 'track' | 'queue';
 
 /**
  * TTS 자동 읽기 채널 등록 레코드 (Redis 영속화 대상).
