@@ -5,10 +5,29 @@ import playCommand from '@/commands/music/play';
 import stopCommand from '@/commands/music/stop';
 import queueCommand from '@/commands/music/queue';
 import leaveCommand from '@/commands/music/leave';
+import pauseCommand from '@/commands/music/pause';
+import resumeCommand from '@/commands/music/resume';
+import skipCommand from '@/commands/music/skip';
+import loopCommand from '@/commands/music/loop';
+import shuffleCommand from '@/commands/music/shuffle';
+import volumeCommand from '@/commands/music/volume';
 import registerChannelCommand from '@/commands/tts/registerChannel';
 import unregisterChannelCommand from '@/commands/tts/unregisterChannel';
 
-const allCommands: Command[] = [playCommand, stopCommand, queueCommand, leaveCommand, registerChannelCommand, unregisterChannelCommand];
+const allCommands: Command[] = [
+    playCommand,
+    stopCommand,
+    queueCommand,
+    leaveCommand,
+    pauseCommand,
+    resumeCommand,
+    skipCommand,
+    loopCommand,
+    shuffleCommand,
+    volumeCommand,
+    registerChannelCommand,
+    unregisterChannelCommand,
+];
 
 /**
  * 커맨드 이름 -> Command 조회용 컬렉션. interactionCreate 이벤트 핸들러가 사용한다.

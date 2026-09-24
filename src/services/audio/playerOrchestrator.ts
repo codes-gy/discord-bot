@@ -1,6 +1,6 @@
 import { TextChannel, type VoiceBasedChannel, type EmbedBuilder } from 'discord.js';
 import { AudioPlayerStatus, createAudioResource, entersState } from '@discordjs/voice';
-import type { QueueItem, ServerQueue } from '@/types';
+import type { QueueItem, ServerQueue, LoopMode } from '@/types';
 import { client } from '@/libs/discordClient';
 import { logger } from '@/utils/logger';
 import { buildErrorEmbed, buildNowPlayingEmbed } from '@/utils/embeds';
@@ -40,6 +40,9 @@ export async function ensureServerQueue(voiceChannel: VoiceBasedChannel, textCha
         idleLeaveTimer: null,
         emptyChannelTimer: null,
         reconnectAttempts: 0,
+        loopMode: 'off',
+        volume: 100,
+        skipRequested: false,
     };
 
     attachMusicPlayerLifecycle(serverQueue);
@@ -50,7 +53,20 @@ export async function ensureServerQueue(voiceChannel: VoiceBasedChannel, textCha
 function attachMusicPlayerLifecycle(serverQueue: ServerQueue): void {
     serverQueue.musicPlayer.on('stateChange', (oldState, newState) => {
         if (oldState.status !== AudioPlayerStatus.Idle && newState.status === AudioPlayerStatus.Idle) {
+            const finishedItem = serverQueue.currentItem;
+            const wasSkip = serverQueue.skipRequested;
+            serverQueue.skipRequested = false;
             destroyMusicResource(serverQueue);
+
+            // 반복 모드 처리: /스킵으로 넘어간 경우엔 반복 모드와 무관하게 그냥 다음 곡으로 진행한다.
+            if (!wasSkip && finishedItem) {
+                if (serverQueue.loopMode === 'track') {
+                    serverQueue.queue.unshift(finishedItem);
+                } else if (serverQueue.loopMode === 'queue') {
+                    serverQueue.queue.push(finishedItem);
+                }
+            }
+
             void playNext(serverQueue.guildId);
         }
     });
@@ -136,7 +152,8 @@ export async function playNext(guildId: string, options: PlayNextOptions = {}): 
 
     try {
         const { stream, inputType } = await createYoutubeAudioStream(nextItem.url);
-        const resource = createAudioResource(stream, { inputType });
+        const resource = createAudioResource(stream, { inputType, inlineVolume: true });
+        resource.volume?.setVolume(serverQueue.volume / 100);
         serverQueue.musicResource = resource;
         serverQueue.musicSourceStream = stream;
         serverQueue.currentItem = nextItem;
@@ -169,6 +186,97 @@ export function stopAndClearQueue(guildId: string): boolean {
     serverQueue.musicPlayer.stop(true);
     scheduleIdleQueueLeave(guildId);
     return true;
+}
+
+/**
+ * /일시정지 (기획서 F-06): 대기열을 그대로 둔 채 현재 재생만 멈춘다.
+ * 반환값: 'paused'(성공) | 'already-paused' | 'nothing-playing'
+ */
+export function pauseMusic(guildId: string): 'paused' | 'already-paused' | 'nothing-playing' {
+    const serverQueue = getServerQueue(guildId);
+    if (!serverQueue || !serverQueue.currentItem) {
+        return 'nothing-playing';
+    }
+    if (serverQueue.musicPlayer.state.status === AudioPlayerStatus.Paused) {
+        return 'already-paused';
+    }
+    serverQueue.musicPlayer.pause();
+    return 'paused';
+}
+
+/**
+ * /재개 (기획서 F-06): 일시정지된 재생을 이어서 재생한다.
+ */
+export function resumeMusic(guildId: string): 'resumed' | 'not-paused' | 'nothing-playing' {
+    const serverQueue = getServerQueue(guildId);
+    if (!serverQueue || !serverQueue.currentItem) {
+        return 'nothing-playing';
+    }
+    if (serverQueue.musicPlayer.state.status !== AudioPlayerStatus.Paused) {
+        return 'not-paused';
+    }
+    serverQueue.musicPlayer.unpause();
+    return 'resumed';
+}
+
+/**
+ * /스킵 (기획서 F-07): 현재 곡을 건너뛴다. musicPlayer.stop()이 Idle 전이를 일으켜
+ * attachMusicPlayerLifecycle의 stateChange 리스너가 자동으로 다음 곡을 재생한다.
+ */
+export function skipCurrent(guildId: string): boolean {
+    const serverQueue = getServerQueue(guildId);
+    if (!serverQueue || !serverQueue.currentItem) {
+        return false;
+    }
+    serverQueue.skipRequested = true;
+    serverQueue.musicPlayer.stop(true);
+    return true;
+}
+
+/**
+ * /반복 (기획서 F-08): 반복 모드를 설정한다. 실제 재삽입 로직은 attachMusicPlayerLifecycle에서 처리한다.
+ */
+export function setLoopMode(guildId: string, mode: LoopMode): boolean {
+    const serverQueue = getServerQueue(guildId);
+    if (!serverQueue) {
+        return false;
+    }
+    serverQueue.loopMode = mode;
+    return true;
+}
+
+/**
+ * /셔플 (기획서 F-09): 현재 재생 중인 곡은 그대로 두고, 대기열 순서만 Fisher–Yates로 섞는다.
+ */
+export function shuffleQueue(guildId: string): boolean {
+    const serverQueue = getServerQueue(guildId);
+    if (!serverQueue || serverQueue.queue.length < 2) {
+        return false;
+    }
+    for (let i = serverQueue.queue.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [serverQueue.queue[i], serverQueue.queue[j]] = [serverQueue.queue[j], serverQueue.queue[i]];
+    }
+    return true;
+}
+
+/**
+ * /볼륨 (기획서 F-10): 0~100 범위의 볼륨을 설정한다. 현재 재생 중인 리소스에 즉시 반영하고,
+ * ServerQueue.volume에 저장해 다음 곡에도 유지되게 한다.
+ */
+export function setVolume(guildId: string, volumePercent: number): boolean {
+    const serverQueue = getServerQueue(guildId);
+    if (!serverQueue) {
+        return false;
+    }
+    serverQueue.volume = volumePercent;
+    serverQueue.musicResource?.volume?.setVolume(volumePercent / 100);
+    return true;
+}
+
+export function getVolume(guildId: string): number | null {
+    const serverQueue = getServerQueue(guildId);
+    return serverQueue ? serverQueue.volume : null;
 }
 
 /**
