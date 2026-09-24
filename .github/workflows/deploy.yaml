@@ -12,6 +12,12 @@ jobs:
   deploy-pr:
     name: Trigger Render Deployment on PR
     runs-on: ubuntu-latest
+    # 기본 GITHUB_TOKEN은 저장소 설정에 따라 읽기 전용일 수 있어, PR 댓글 작성(issues.createComment)이
+    # "Resource not accessible by integration"(403)로 실패할 수 있다. 이 워크플로에 필요한 만큼만 명시적으로 부여한다.
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
 
     steps:
       - name: Checkout Code
