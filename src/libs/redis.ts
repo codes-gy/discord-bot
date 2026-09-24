@@ -199,30 +199,3 @@ export async function getGuildStats(guildId: string): Promise<GuildStats> {
         topTracks: topRaw.map((item) => ({ title: item.value, count: item.score })),
     };
 }
-
-const REACTION_ROLE_KEY_PREFIX = 'reactionrole:'; // Hash: field=이모지 키, value=역할 ID (메시지 하나에 여러 이모지 바인딩 가능)
-
-/**
- * 리액션 역할 바인딩을 등록한다 (기획서 F-15). 같은 메시지에 이모지별로 여러 개 등록할 수 있다.
- */
-export async function setReactionRole(messageId: string, emojiKey: string, roleId: string): Promise<void> {
-    await getClient().hSet(`${REACTION_ROLE_KEY_PREFIX}${messageId}`, emojiKey, roleId);
-}
-
-export async function removeReactionRole(messageId: string, emojiKey: string): Promise<void> {
-    await getClient().hDel(`${REACTION_ROLE_KEY_PREFIX}${messageId}`, emojiKey);
-}
-
-/**
- * 메시지 반응 이벤트마다 호출되므로, 캐시 없이 매번 Redis를 직접 조회한다
- * (messageCreate의 TTS 채널 조회와 달리 호출 빈도가 훨씬 낮아 캐시의 이점이 적다).
- */
-export async function getReactionRole(messageId: string, emojiKey: string): Promise<string | null> {
-    try {
-        const value = await getClient().hGet(`${REACTION_ROLE_KEY_PREFIX}${messageId}`, emojiKey);
-        return value ?? null;
-    } catch (error) {
-        logger.error(`리액션 역할 조회 실패 (messageId=${messageId}, emojiKey=${emojiKey}):`, error);
-        return null;
-    }
-}

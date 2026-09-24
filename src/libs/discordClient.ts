@@ -14,7 +14,6 @@ export const client = new Client({
         GatewayIntentBits.GuildVoiceStates, // 음성 채널 상태 권한
         GatewayIntentBits.GuildMembers, // Server Members Intent (환영 메시지: GuildMemberAdd 감지에 필수)
         GatewayIntentBits.GuildPresences, // Presence Intent
-        GatewayIntentBits.GuildMessageReactions, // 리액션 역할: MessageReactionAdd/Remove 감지에 필수
         GatewayIntentBits.DirectMessages,
         GatewayIntentBits.GuildScheduledEvents,
     ],
@@ -22,7 +21,5 @@ export const client = new Client({
         Partials.Channel, // DM 채널 이벤트를 정상 수신하기 위해 필수
         Partials.Message, // 안 읽은/이전 메시지 이벤트 처리
         Partials.GuildMember, // 서버 멤버 데이터 처리
-        Partials.Reaction, // 캐시되지 않은(오래된) 메시지의 리액션 이벤트 처리 (리액션 역할에 필수)
-        Partials.User,
     ],
 });
