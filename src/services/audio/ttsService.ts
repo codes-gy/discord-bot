@@ -4,6 +4,15 @@ import { StreamType } from '@discordjs/voice';
 import { logger } from '@/utils/logger';
 
 const MAX_TTS_TEXT_LENGTH = 300;
+export const DEFAULT_TTS_LANG = 'ko';
+
+/** 지원하는 TTS 언어 목록 (기획서 F-13). google-tts-api(Google 번역 TTS)가 지원하는 언어 코드 중 자주 쓰이는 것만 추린다. */
+export const TTS_LANGUAGE_CHOICES = [
+    { name: '한국어', value: 'ko' },
+    { name: '영어', value: 'en' },
+    { name: '일본어', value: 'ja' },
+    { name: '중국어', value: 'zh-CN' },
+] as const;
 
 export interface TtsChunkStream {
     stream: prism.FFmpeg;
@@ -20,7 +29,7 @@ export interface TtsAudioResult {
  * 임의 길이의 텍스트를 google-tts-api 제약(청크당 200자)에 맞게 URL 목록으로 분할한다.
  * 과도하게 긴 메시지는 앞부분만 잘라서 읽어주고, truncated: true로 호출부가 사용자에게 안내할 수 있게 한다.
  */
-export function buildTtsAudioUrls(rawText: string): TtsAudioResult {
+export function buildTtsAudioUrls(rawText: string, lang: string = DEFAULT_TTS_LANG): TtsAudioResult {
     const trimmed = rawText.trim();
     const text = trimmed.slice(0, MAX_TTS_TEXT_LENGTH);
     const truncated = trimmed.length > MAX_TTS_TEXT_LENGTH;
@@ -30,7 +39,7 @@ export function buildTtsAudioUrls(rawText: string): TtsAudioResult {
     }
 
     try {
-        const results = getAllAudioUrls(text, { lang: 'ko', slow: false });
+        const results = getAllAudioUrls(text, { lang, slow: false });
         return { urls: results.map((result) => result.url), truncated };
     } catch (error) {
         logger.error('google-tts-api URL 생성 실패:', error);

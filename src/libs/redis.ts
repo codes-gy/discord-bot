@@ -3,6 +3,7 @@ import { env } from '@/libs/env';
 import { logger } from '@/utils/logger';
 
 const TTS_CHANNEL_KEY_PREFIX = 'tts:channel:';
+const TTS_USER_LANG_KEY_PREFIX = 'tts:userLang:';
 
 let client: RedisClientType | null = null;
 
@@ -12,6 +13,9 @@ let client: RedisClientType | null = null;
  * 값이 null이면 "해당 서버는 TTS 미등록"을 의미한다.
  */
 const ttsChannelCache = new Map<string, string | null>();
+
+/** 사용자별 TTS 언어 설정 캐시. ttsChannelCache와 동일한 이유로 둔다. 값이 없으면 기본 언어(ko)를 쓴다. */
+const userLangCache = new Map<string, string | null>();
 
 /**
  * Redis 연결을 초기화한다. 재연결은 지수 백오프(최대 10초 간격)로 처리하며,
@@ -82,4 +86,29 @@ export async function setTtsChannel(guildId: string, channelId: string): Promise
 export async function removeTtsChannel(guildId: string): Promise<void> {
     await getClient().del(`${TTS_CHANNEL_KEY_PREFIX}${guildId}`);
     ttsChannelCache.set(guildId, null);
+}
+
+/**
+ * 사용자별 TTS 언어 설정을 조회한다 (기획서 F-13). 설정한 적이 없으면 null을 반환하며,
+ * 호출부(messageCreate.ts)가 이를 기본 언어(ko)로 취급한다.
+ */
+export async function getUserTtsLang(userId: string): Promise<string | null> {
+    if (userLangCache.has(userId)) {
+        return userLangCache.get(userId) ?? null;
+    }
+
+    try {
+        const value = await getClient().get(`${TTS_USER_LANG_KEY_PREFIX}${userId}`);
+        const normalized = value ?? null;
+        userLangCache.set(userId, normalized);
+        return normalized;
+    } catch (error) {
+        logger.error(`TTS 사용자 언어 설정 조회 실패 (userId=${userId}):`, error);
+        return null;
+    }
+}
+
+export async function setUserTtsLang(userId: string, lang: string): Promise<void> {
+    await getClient().set(`${TTS_USER_LANG_KEY_PREFIX}${userId}`, lang);
+    userLangCache.set(userId, lang);
 }
