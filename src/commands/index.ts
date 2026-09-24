@@ -13,6 +13,7 @@ import shuffleCommand from '@/commands/music/shuffle';
 import volumeCommand from '@/commands/music/volume';
 import registerChannelCommand from '@/commands/tts/registerChannel';
 import unregisterChannelCommand from '@/commands/tts/unregisterChannel';
+import setLanguageCommand from '@/commands/tts/setLanguage';
 
 const allCommands: Command[] = [
     playCommand,
@@ -27,6 +28,7 @@ const allCommands: Command[] = [
     volumeCommand,
     registerChannelCommand,
     unregisterChannelCommand,
+    setLanguageCommand,
 ];
 
 /**

@@ -297,14 +297,14 @@ export async function leaveGuild(guildId: string): Promise<boolean> {
  * 3) google-tts-api 청크를 순차 재생
  * 4) 종료 후 connection 구독을 musicPlayer로 되돌리고 재개(unpause는 재생 중이 아니었다면 안전하게 무시됨)
  */
-export async function interruptWithTts(voiceChannel: VoiceBasedChannel, textChannelId: string, text: string): Promise<void> {
+export async function interruptWithTts(voiceChannel: VoiceBasedChannel, textChannelId: string, text: string, lang?: string): Promise<void> {
     const guildId = voiceChannel.guild.id;
     const serverQueue = await ensureServerQueue(voiceChannel, textChannelId);
 
     clearEmptyChannelTimer(guildId);
     clearIdleQueueTimer(guildId);
 
-    const { urls: audioUrls, truncated } = buildTtsAudioUrls(text);
+    const { urls: audioUrls, truncated } = buildTtsAudioUrls(text, lang);
     if (audioUrls.length === 0) {
         return;
     }

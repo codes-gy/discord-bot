@@ -1,5 +1,5 @@
 import type { GuildMember, Message } from 'discord.js';
-import { getTtsChannel } from '@/libs/redis';
+import { getTtsChannel, getUserTtsLang } from '@/libs/redis';
 import { interruptWithTts } from '@/services/audio/playerOrchestrator';
 import { logger } from '@/utils/logger';
 
@@ -33,7 +33,7 @@ export async function handleMessageCreate(message: Message): Promise<void> {
             return;
         }
 
-        await interruptWithTts(voiceChannel, message.channelId, content);
+        await interruptWithTts(voiceChannel, message.channelId, content, (await getUserTtsLang(message.author.id)) ?? undefined);
     } catch (error) {
         logger.error(`[messageCreate] TTS 처리 중 오류가 발생했습니다 (guildId=${message.guildId}):`, error);
         // 서버 로그만으로는 사용자가 실패 사실을 알 수 없으므로, 채널에도 눈에 보이는 실패 신호를 남긴다.
