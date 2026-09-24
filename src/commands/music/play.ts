@@ -36,7 +36,7 @@ const command: Command = {
                     return;
                 }
                 await interaction.editReply({
-                    embeds: [buildEmptyStateEmbed('검색 결과를 선택해주세요', '아래 목록에서 재생할 곡을 골라주세요. (1분 내 미선택 시 만료돼요)')],
+                    embeds: [buildEmptyStateEmbed('검색 결과를 선택해주세요', '아래 목록에서 재생할 곡을 골라주세요.')],
                     components: [buildTrackSelectMenu(results)],
                 });
                 return;

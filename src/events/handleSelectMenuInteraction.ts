@@ -2,6 +2,7 @@ import type { StringSelectMenuInteraction } from 'discord.js';
 import { resolveTrack } from '@/services/audio/youtubeService';
 import { joinAndEnqueue } from '@/services/audio/playerOrchestrator';
 import { buildNowPlayingEmbed, buildQueueAddedEmbed, buildEmptyStateEmbed, buildErrorEmbed, buildNowPlayingComponents } from '@/utils/embeds';
+import { TRACK_SELECT_CUSTOM_ID } from '@/utils/trackSelect';
 import { resolveVoiceContext } from '@/utils/voiceGuard';
 import { logger } from '@/utils/logger';
 
@@ -11,6 +12,11 @@ import { logger } from '@/utils/logger';
  * 음성 채널을 나갔을 수도 있기 때문에, 메뉴 표시 시점의 검증 결과를 재사용하지 않는다.
  */
 export async function handleSelectMenuInteraction(interaction: StringSelectMenuInteraction): Promise<void> {
+    // 앞으로 다른 기능이 셀렉트 메뉴를 추가할 수 있으므로, customId가 정확히 일치할 때만 처리한다.
+    if (interaction.customId !== TRACK_SELECT_CUSTOM_ID) {
+        return;
+    }
+
     await interaction.deferUpdate();
 
     const voiceContext = resolveVoiceContext(interaction);

@@ -10,19 +10,28 @@ export interface TtsChunkStream {
     inputType: StreamType;
 }
 
+export interface TtsAudioResult {
+    urls: string[];
+    /** MAX_TTS_TEXT_LENGTH를 초과해 잘렸는지 여부. 호출부가 사용자에게 안내할 때 사용한다. */
+    truncated: boolean;
+}
+
 /**
  * 임의 길이의 텍스트를 google-tts-api 제약(청크당 200자)에 맞게 URL 목록으로 분할한다.
- * 과도하게 긴 메시지는 사용자 안내 후 앞부분만 잘라서 읽어준다.
+ * 과도하게 긴 메시지는 앞부분만 잘라서 읽어주고, truncated: true로 호출부가 사용자에게 안내할 수 있게 한다.
  */
-export function buildTtsAudioUrls(rawText: string): string[] {
-    const text = rawText.trim().slice(0, MAX_TTS_TEXT_LENGTH);
+export function buildTtsAudioUrls(rawText: string): TtsAudioResult {
+    const trimmed = rawText.trim();
+    const text = trimmed.slice(0, MAX_TTS_TEXT_LENGTH);
+    const truncated = trimmed.length > MAX_TTS_TEXT_LENGTH;
+
     if (text.length === 0) {
-        return [];
+        return { urls: [], truncated: false };
     }
 
     try {
         const results = getAllAudioUrls(text, { lang: 'ko', slow: false });
-        return results.map((result) => result.url);
+        return { urls: results.map((result) => result.url), truncated };
     } catch (error) {
         logger.error('google-tts-api URL 생성 실패:', error);
         throw new Error('TTS 음성 생성에 실패했어요.', { cause: error });

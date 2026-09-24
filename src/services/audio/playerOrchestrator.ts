@@ -3,7 +3,7 @@ import { AudioPlayerStatus, createAudioResource, entersState } from '@discordjs/
 import type { QueueItem, ServerQueue, LoopMode } from '@/types';
 import { client } from '@/libs/discordClient';
 import { logger } from '@/utils/logger';
-import { buildErrorEmbed, buildNowPlayingEmbed, buildNowPlayingComponents } from '@/utils/embeds';
+import { buildErrorEmbed, buildNowPlayingEmbed, buildNowPlayingComponents, buildEmptyStateEmbed } from '@/utils/embeds';
 import { getServerQueue, setServerQueue } from '@/services/audio/queueStore';
 import { createPlayer, joinChannel } from '@/services/audio/connectionManager';
 import { createYoutubeAudioStream } from '@/services/audio/youtubeService';
@@ -304,9 +304,15 @@ export async function interruptWithTts(voiceChannel: VoiceBasedChannel, textChan
     clearEmptyChannelTimer(guildId);
     clearIdleQueueTimer(guildId);
 
-    const audioUrls = buildTtsAudioUrls(text);
+    const { urls: audioUrls, truncated } = buildTtsAudioUrls(text);
     if (audioUrls.length === 0) {
         return;
+    }
+    if (truncated) {
+        await notifyTextChannel(
+            textChannelId,
+            buildEmptyStateEmbed('메시지가 너무 길어서 일부만 읽어드려요', `TTS는 최대 300자까지만 지원해요. 앞부분만 재생할게요.`)
+        );
     }
 
     serverQueue.isTtsPlaying = true;
