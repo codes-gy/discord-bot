@@ -7,6 +7,7 @@ import { client } from '@/libs/discordClient';
 import { handleMessageCreate } from '@/events/messageCreate';
 import { handleInteractionCreate } from '@/events/interactionCreate';
 import { handleVoiceStateUpdate } from '@/events/voiceStateUpdate';
+import { handleGuildMemberAdd } from '@/events/guildMemberAdd';
 import { logger } from '@/utils/logger';
 import { env } from '@/libs/env';
 import { connectRedis } from '@/libs/redis';
@@ -38,6 +39,11 @@ client.on(Events.InteractionCreate, (interaction) => {
 client.on(Events.VoiceStateUpdate, (oldState, newState) => {
     handleVoiceStateUpdate(oldState, newState).catch((error: unknown) => {
         logger.error('voiceStateUpdate 핸들러에서 처리되지 않은 오류:', error);
+    });
+});
+client.on(Events.GuildMemberAdd, (member) => {
+    handleGuildMemberAdd(member).catch((error: unknown) => {
+        logger.error('guildMemberAdd 핸들러에서 처리되지 않은 오류:', error);
     });
 });
 

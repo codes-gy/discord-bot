@@ -1,4 +1,4 @@
-import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, type GuildMember } from 'discord.js';
 import type { QueueItem } from '@/types';
 import { formatDuration } from '@/utils/time';
 
@@ -97,4 +97,14 @@ export function buildNowPlayingComponents(): ActionRowBuilder<ButtonBuilder> {
         new ButtonBuilder().setCustomId(MUSIC_BUTTON_ID.stop).setEmoji('⏹').setLabel('정지').setStyle(ButtonStyle.Danger),
         new ButtonBuilder().setCustomId(MUSIC_BUTTON_ID.loop).setEmoji('🔁').setLabel('반복 전환').setStyle(ButtonStyle.Secondary)
     );
+}
+
+/** 신규 멤버 환영 메시지 임베드 (기획서 F-14). */
+export function buildWelcomeEmbed(member: GuildMember): EmbedBuilder {
+    return new EmbedBuilder()
+        .setColor(COLOR_SUCCESS)
+        .setTitle('환영합니다! 🎉')
+        .setDescription(`${member}님, **${member.guild.name}** 서버에 오신 것을 환영해요!`)
+        .setThumbnail(member.user.displayAvatarURL())
+        .addFields({ name: '현재 멤버 수', value: `${member.guild.memberCount}명`, inline: true });
 }

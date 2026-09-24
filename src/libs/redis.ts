@@ -112,3 +112,37 @@ export async function setUserTtsLang(userId: string, lang: string): Promise<void
     await getClient().set(`${TTS_USER_LANG_KEY_PREFIX}${userId}`, lang);
     userLangCache.set(userId, lang);
 }
+
+const WELCOME_CHANNEL_KEY_PREFIX = 'welcome:channel:';
+
+/** 환영 메시지를 보낼 채널 캐시. ttsChannelCache와 동일한 패턴이다. */
+const welcomeChannelCache = new Map<string, string | null>();
+
+/**
+ * 등록된 환영 메시지 채널 ID를 조회한다 (기획서 F-14).
+ */
+export async function getWelcomeChannel(guildId: string): Promise<string | null> {
+    if (welcomeChannelCache.has(guildId)) {
+        return welcomeChannelCache.get(guildId) ?? null;
+    }
+
+    try {
+        const value = await getClient().get(`${WELCOME_CHANNEL_KEY_PREFIX}${guildId}`);
+        const normalized = value ?? null;
+        welcomeChannelCache.set(guildId, normalized);
+        return normalized;
+    } catch (error) {
+        logger.error(`환영 채널 조회 실패 (guildId=${guildId}):`, error);
+        return null;
+    }
+}
+
+export async function setWelcomeChannel(guildId: string, channelId: string): Promise<void> {
+    await getClient().set(`${WELCOME_CHANNEL_KEY_PREFIX}${guildId}`, channelId);
+    welcomeChannelCache.set(guildId, channelId);
+}
+
+export async function removeWelcomeChannel(guildId: string): Promise<void> {
+    await getClient().del(`${WELCOME_CHANNEL_KEY_PREFIX}${guildId}`);
+    welcomeChannelCache.set(guildId, null);
+}
