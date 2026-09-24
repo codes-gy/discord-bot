@@ -3,13 +3,25 @@ import { commands } from '@/commands/index';
 import { logger } from '@/utils/logger';
 import { handleCommandError } from '@/utils/errorHandler';
 import { buildErrorEmbed } from '@/utils/embeds';
+import { handleButtonInteraction } from '@/events/handleButtonInteraction';
+import { handleSelectMenuInteraction } from '@/events/handleSelectMenuInteraction';
 
 /**
- * 모든 슬래시 커맨드 인터랙션의 단일 진입점.
+ * 모든 인터랙션(슬래시 커맨드 + Now Playing 버튼 + 검색결과 선택 메뉴)의 단일 진입점.
  * 커맨드 자체 실행 중 발생한 예외는 handleCommandError(내부적으로 safeReply 사용)가
  * deferred/replied 상태를 판별해 "Interaction already replied" 에러 없이 안전하게 응답한다.
  */
 export async function handleInteractionCreate(interaction: Interaction): Promise<void> {
+    if (interaction.isButton()) {
+        await handleButtonInteraction(interaction);
+        return;
+    }
+
+    if (interaction.isStringSelectMenu()) {
+        await handleSelectMenuInteraction(interaction);
+        return;
+    }
+
     if (!interaction.isChatInputCommand()) {
         return;
     }

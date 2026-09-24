@@ -1,9 +1,12 @@
-import { SlashCommandBuilder, PermissionFlagsBits, type ChatInputCommandInteraction, type GuildMember } from 'discord.js';
-import type { Command, QueueItem } from '@/types';
-import { resolveTrack } from '@/services/audio/youtubeService';
+import { SlashCommandBuilder, type ChatInputCommandInteraction } from 'discord.js';
+import play from 'play-dl';
+import type { Command } from '@/types';
+import { resolveTrack, searchTopResults } from '@/services/audio/youtubeService';
 import { joinAndEnqueue } from '@/services/audio/playerOrchestrator';
-import { buildNowPlayingEmbed, buildQueueAddedEmbed, buildEmptyStateEmbed, buildErrorEmbed } from '@/utils/embeds';
+import { buildNowPlayingEmbed, buildQueueAddedEmbed, buildEmptyStateEmbed, buildErrorEmbed, buildNowPlayingComponents } from '@/utils/embeds';
+import { buildTrackSelectMenu } from '@/utils/trackSelect';
 import { handleCommandError, safeReply } from '@/utils/errorHandler';
+import { resolveVoiceContext } from '@/utils/voiceGuard';
 
 const command: Command = {
     data: new SlashCommandBuilder()
@@ -14,36 +17,33 @@ const command: Command = {
         // 디스코드 API 3초 제약(Interaction Timeout) 방지를 위해 최우선으로 defer. 모든 응답은 비공개(ephemeral)로 표시한다.
         await interaction.deferReply({ ephemeral: true });
 
-        if (!interaction.guild) {
-            await safeReply(interaction, [buildEmptyStateEmbed('서버 전용 명령어예요', '이 명령어는 디스코드 서버 안에서만 사용할 수 있어요.')]);
+        const voiceContext = resolveVoiceContext(interaction);
+        if (!voiceContext.ok) {
+            await safeReply(interaction, [buildEmptyStateEmbed(voiceContext.title, voiceContext.description)]);
             return;
         }
+        const { voiceChannel } = voiceContext;
 
-        const member = interaction.member as GuildMember | null;
-        const voiceChannel = member?.voice.channel ?? null;
-        if (!voiceChannel) {
-            await safeReply(interaction, [
-                buildEmptyStateEmbed('음성 채널에 먼저 입장해주세요', '`/재생`은 음성 채널에 입장한 상태에서만 사용할 수 있어요.'),
-            ]);
-            return;
-        }
-
-        const botMember = interaction.guild.members.me;
-        if (botMember) {
-            const permissions = voiceChannel.permissionsFor(botMember);
-            if (!permissions?.has(PermissionFlagsBits.Connect) || !permissions.has(PermissionFlagsBits.Speak)) {
-                await safeReply(interaction, [
-                    buildEmptyStateEmbed('권한이 부족해요', '봇에게 해당 음성 채널의 `연결` 및 `말하기` 권한이 필요해요.'),
-                ]);
-                return;
-            }
-        }
-
-        const query = interaction.options.getString('검색어', true);
+        const query = interaction.options.getString('검색어', true).trim();
 
         try {
+            // URL이면 바로 재생, 순수 검색어면 상위 5개 결과를 선택 메뉴로 보여준다 (기획서 F-12).
+            const validation = play.yt_validate(query);
+            if (validation !== 'video' && validation !== 'playlist') {
+                const results = await searchTopResults(query, 5);
+                if (results.length === 0) {
+                    await safeReply(interaction, [buildErrorEmbed('검색 결과가 없어요', `"${query}"에 대한 검색 결과를 찾지 못했어요.`)]);
+                    return;
+                }
+                await interaction.editReply({
+                    embeds: [buildEmptyStateEmbed('검색 결과를 선택해주세요', '아래 목록에서 재생할 곡을 골라주세요. (1분 내 미선택 시 만료돼요)')],
+                    components: [buildTrackSelectMenu(results)],
+                });
+                return;
+            }
+
             const resolved = await resolveTrack(query);
-            const item: QueueItem = {
+            const item = {
                 ...resolved.item,
                 requestedById: interaction.user.id,
                 requestedByTag: interaction.user.tag,
@@ -53,7 +53,12 @@ const command: Command = {
 
             if (result.startedImmediately) {
                 if (result.startedItem) {
-                    await safeReply(interaction, [buildNowPlayingEmbed(result.startedItem, result.remainingInQueue ?? 0)]);
+                    await safeReply(
+                        interaction,
+                        [buildNowPlayingEmbed(result.startedItem, result.remainingInQueue ?? 0)],
+                        true,
+                        [buildNowPlayingComponents()]
+                    );
                 } else {
                     await safeReply(interaction, [
                         buildErrorEmbed('재생을 시작하지 못했어요', '요청한 곡을 재생하지 못해서 대기열이 비었어요. 다른 곡으로 다시 시도해주세요.'),

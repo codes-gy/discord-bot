@@ -1,4 +1,4 @@
-import type { ChatInputCommandInteraction, EmbedBuilder } from 'discord.js';
+import type { ChatInputCommandInteraction, EmbedBuilder, ActionRowBuilder, MessageActionRowComponentBuilder } from 'discord.js';
 import { logger } from '@/utils/logger';
 import { buildErrorEmbed } from '@/utils/embeds';
 
@@ -7,17 +7,22 @@ import { buildErrorEmbed } from '@/utils/embeds';
  * 디스코드의 "Interaction has already been acknowledged" 에러를 원천적으로 방지하기 위한
  * 유일한 응답 경로로 사용해야 한다.
  */
-export async function safeReply(interaction: ChatInputCommandInteraction, embeds: EmbedBuilder[], ephemeral = true): Promise<void> {
+export async function safeReply(
+    interaction: ChatInputCommandInteraction,
+    embeds: EmbedBuilder[],
+    ephemeral = true,
+    components: ActionRowBuilder<MessageActionRowComponentBuilder>[] = []
+): Promise<void> {
     try {
         if (interaction.deferred && !interaction.replied) {
-            await interaction.editReply({ embeds });
+            await interaction.editReply({ embeds, components });
             return;
         }
         if (interaction.replied) {
-            await interaction.followUp({ embeds, ephemeral });
+            await interaction.followUp({ embeds, components, ephemeral });
             return;
         }
-        await interaction.reply({ embeds, ephemeral });
+        await interaction.reply({ embeds, components, ephemeral });
     } catch (error) {
         // Unknown interaction(10062) 등 이미 만료된 인터랙션에 대한 응답 실패는
         // 사용자에게 전달할 방법이 없으므로 로그만 남기고 조용히 무시한다.

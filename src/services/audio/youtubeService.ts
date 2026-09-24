@@ -40,6 +40,29 @@ export async function initYoutubeCookies(): Promise<void> {
     }
 }
 
+export interface SearchResultItem {
+    title: string;
+    url: string;
+    durationSec: number;
+    channelName: string | null;
+}
+
+/**
+ * 검색어에 대한 상위 유튜브 영상 결과를 여러 개 반환한다 (기획서 F-12: 검색결과 선택 UI).
+ * URL 입력은 이 함수를 거치지 않는다 — 호출부(play.ts)에서 play.yt_validate로 미리 분기한다.
+ */
+export async function searchTopResults(query: string, limit = 5): Promise<SearchResultItem[]> {
+    const results = await play.search(query.trim(), { source: { youtube: 'video' }, limit });
+    return results
+        .filter((result) => Boolean(result.url))
+        .map((result) => ({
+            title: result.title ?? '제목 없음',
+            url: result.url,
+            durationSec: result.durationInSec ?? 0,
+            channelName: result.channel?.name ?? null,
+        }));
+}
+
 export interface ResolvedTrack {
     item: Omit<QueueItem, 'requestedById' | 'requestedByTag'>;
 }
