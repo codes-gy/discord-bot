@@ -17,6 +17,8 @@ import setLanguageCommand from '@/commands/tts/setLanguage';
 import setWelcomeChannelCommand from '@/commands/utility/setWelcomeChannel';
 import unsetWelcomeChannelCommand from '@/commands/utility/unsetWelcomeChannel';
 import statsCommand from '@/commands/utility/stats';
+import setReactionRoleCommand from '@/commands/utility/setReactionRole';
+import removeReactionRoleCommand from '@/commands/utility/removeReactionRole';
 
 const allCommands: Command[] = [
     playCommand,
@@ -35,6 +37,8 @@ const allCommands: Command[] = [
     setWelcomeChannelCommand,
     unsetWelcomeChannelCommand,
     statsCommand,
+    setReactionRoleCommand,
+    removeReactionRoleCommand,
 ];
 
 /**
