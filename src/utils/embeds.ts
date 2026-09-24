@@ -1,4 +1,4 @@
-import { EmbedBuilder } from 'discord.js';
+import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import type { QueueItem } from '@/types';
 import { formatDuration } from '@/utils/time';
 
@@ -80,4 +80,21 @@ export function buildQueueListEmbed(current: QueueItem | null, queue: QueueItem[
     }
 
     return embed;
+}
+
+/** Now Playing 임베드에 붙는 컨트롤 버튼 (기획서 F-11). 커맨드 응답/자동 알림 메시지 양쪽에서 재사용된다. */
+export const MUSIC_BUTTON_ID = {
+    pauseResume: 'music:pauseResume',
+    skip: 'music:skip',
+    stop: 'music:stop',
+    loop: 'music:loop',
+} as const;
+
+export function buildNowPlayingComponents(): ActionRowBuilder<ButtonBuilder> {
+    return new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder().setCustomId(MUSIC_BUTTON_ID.pauseResume).setEmoji('⏯').setLabel('일시정지/재개').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId(MUSIC_BUTTON_ID.skip).setEmoji('⏭').setLabel('스킵').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId(MUSIC_BUTTON_ID.stop).setEmoji('⏹').setLabel('정지').setStyle(ButtonStyle.Danger),
+        new ButtonBuilder().setCustomId(MUSIC_BUTTON_ID.loop).setEmoji('🔁').setLabel('반복 전환').setStyle(ButtonStyle.Secondary)
+    );
 }

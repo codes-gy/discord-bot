@@ -1,9 +1,9 @@
-import { TextChannel, type VoiceBasedChannel, type EmbedBuilder } from 'discord.js';
+import { TextChannel, type VoiceBasedChannel, type EmbedBuilder, type ActionRowBuilder, type ButtonBuilder } from 'discord.js';
 import { AudioPlayerStatus, createAudioResource, entersState } from '@discordjs/voice';
 import type { QueueItem, ServerQueue, LoopMode } from '@/types';
 import { client } from '@/libs/discordClient';
 import { logger } from '@/utils/logger';
-import { buildErrorEmbed, buildNowPlayingEmbed } from '@/utils/embeds';
+import { buildErrorEmbed, buildNowPlayingEmbed, buildNowPlayingComponents } from '@/utils/embeds';
 import { getServerQueue, setServerQueue } from '@/services/audio/queueStore';
 import { createPlayer, joinChannel } from '@/services/audio/connectionManager';
 import { createYoutubeAudioStream } from '@/services/audio/youtubeService';
@@ -159,7 +159,7 @@ export async function playNext(guildId: string, options: PlayNextOptions = {}): 
         serverQueue.currentItem = nextItem;
         serverQueue.musicPlayer.play(resource);
         if (notify) {
-            await notifyTextChannel(serverQueue.textChannelId, buildNowPlayingEmbed(nextItem, serverQueue.queue.length));
+            await notifyTextChannel(serverQueue.textChannelId, buildNowPlayingEmbed(nextItem, serverQueue.queue.length), [buildNowPlayingComponents()]);
         }
         return nextItem;
     } catch (error) {
@@ -351,11 +351,11 @@ async function playTtsChunk(serverQueue: ServerQueue, audioUrl: string): Promise
     }
 }
 
-async function notifyTextChannel(channelId: string, embed: EmbedBuilder): Promise<void> {
+async function notifyTextChannel(channelId: string, embed: EmbedBuilder, components: ActionRowBuilder<ButtonBuilder>[] = []): Promise<void> {
     try {
         const channel = await client.channels.fetch(channelId);
         if (channel instanceof TextChannel) {
-            await channel.send({ embeds: [embed] });
+            await channel.send({ embeds: [embed], components });
         }
     } catch (error) {
         logger.error(`[player] 텍스트 채널(${channelId}) 알림 전송 실패:`, error);
