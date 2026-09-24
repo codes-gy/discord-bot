@@ -14,6 +14,8 @@ import volumeCommand from '@/commands/music/volume';
 import registerChannelCommand from '@/commands/tts/registerChannel';
 import unregisterChannelCommand from '@/commands/tts/unregisterChannel';
 import setLanguageCommand from '@/commands/tts/setLanguage';
+import setWelcomeChannelCommand from '@/commands/utility/setWelcomeChannel';
+import unsetWelcomeChannelCommand from '@/commands/utility/unsetWelcomeChannel';
 
 const allCommands: Command[] = [
     playCommand,
@@ -29,6 +31,8 @@ const allCommands: Command[] = [
     registerChannelCommand,
     unregisterChannelCommand,
     setLanguageCommand,
+    setWelcomeChannelCommand,
+    unsetWelcomeChannelCommand,
 ];
 
 /**
