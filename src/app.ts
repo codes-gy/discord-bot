@@ -8,6 +8,7 @@ import { handleMessageCreate } from '@/events/messageCreate';
 import { handleInteractionCreate } from '@/events/interactionCreate';
 import { handleVoiceStateUpdate } from '@/events/voiceStateUpdate';
 import { handleGuildMemberAdd } from '@/events/guildMemberAdd';
+import { handleMessageReactionAdd, handleMessageReactionRemove } from '@/events/reactionRole';
 import { logger } from '@/utils/logger';
 import { env } from '@/libs/env';
 import { connectRedis } from '@/libs/redis';
@@ -44,6 +45,16 @@ client.on(Events.VoiceStateUpdate, (oldState, newState) => {
 client.on(Events.GuildMemberAdd, (member) => {
     handleGuildMemberAdd(member).catch((error: unknown) => {
         logger.error('guildMemberAdd 핸들러에서 처리되지 않은 오류:', error);
+    });
+});
+client.on(Events.MessageReactionAdd, (reaction, user) => {
+    handleMessageReactionAdd(reaction, user).catch((error: unknown) => {
+        logger.error('messageReactionAdd 핸들러에서 처리되지 않은 오류:', error);
+    });
+});
+client.on(Events.MessageReactionRemove, (reaction, user) => {
+    handleMessageReactionRemove(reaction, user).catch((error: unknown) => {
+        logger.error('messageReactionRemove 핸들러에서 처리되지 않은 오류:', error);
     });
 });
 
